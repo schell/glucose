@@ -1,0 +1,45 @@
+name:                glucose
+version:             0.1.0.0
+-- synopsis:
+-- description:
+homepage:            https://github.com/schell/glucose#readme
+license:             BSD3
+license-file:        LICENSE
+author:              Schell Scivally
+maintainer:          efsubenovex@gmail.com
+copyright:           Copyright: (c) 2016 Schell Scivally
+category:            Graphics
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+flag webgl
+  description: Disable the default OpenGL implementation in favor of the WebGL
+               implementation.
+  default: True
+
+flag ghcjs
+  description: Build for ghcjs.
+  default: False
+
+library
+  hs-source-dirs:      src
+  build-depends:       base >= 4.7 && < 5
+                     , mtl
+  exposed-modules:     Graphics.Glucose
+
+ if flag(ghcjs)
+    build-depends:     ghcjs-base
+
+ if flag(webgl)
+   build-depends:     ghcjs-dom
+   exposed-modules:   Graphics.Glucose.WebGL
+ else
+   build-depends:     gl
+   exposed-modules:   Graphics.Glucose.OpenGL
+
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/schell/glucose

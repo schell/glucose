@@ -1,0 +1,209 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PatternSynonyms       #-}
+{-# LANGUAGE TypeFamilies          #-}
+module Graphics.Glucose where
+
+type ShaderPrecisionFormat = (Int, Int, Int)
+
+class MonadGL a where
+  data M a :: * -> *
+
+  data Program         a
+  data Shader          a
+  data Texture         a
+  data UniformLocation a
+                       
+  data GLclampf	       a
+  data GLfloat	       a
+  data GLenum          a
+  data GLuint          a
+  data GLint           a
+  data GLptr           a
+  data GLsizeiptr      a
+  data GLintptr        a
+  data GLbitfield      a
+  data GLboolean       a
+  data GLsizei         a
+  data GLstring        a
+                       
+  data BufferableData  a
+  data ImageData       a
+                       
+  data Buffer          a
+  data Framebuffer     a
+  data Renderbuffer    a
+  data FloatArray      a
+  data IntArray        a
+                       
+  -- TODO: Fix this
+  data SomeVal
+
+ 
+  glActiveTexture :: GLenum a -> (M a) ()
+  glAttachShader :: Program a -> Shader a -> (M a) ()
+  glBindAttribLocation :: Program a -> GLuint a -> GLstring a -> (M a) ()
+  glBindBuffer :: GLenum a -> Buffer a -> (M a) ()
+  glBindFramebuffer :: GLenum a -> Framebuffer a -> (M a) ()
+  glBindRenderbuffer :: GLenum a -> Renderbuffer a -> (M a) ()
+  glBindTexture :: GLenum a -> Texture a -> (M a) ()
+  glBlendColor :: GLclampf a -> GLclampf a -> GLclampf a -> GLclampf a -> (M a) ()
+  glBlendEquation :: GLenum a -> (M a) ()
+  glBlendEquationSeparate :: GLenum a -> GLenum a -> (M a) ()
+  glBlendFunc :: GLenum a -> GLenum a -> (M a) ()
+  glBlendFuncSeparate :: GLenum a -> GLenum a -> GLenum a -> GLenum a -> (M a) ()
+  glBufferData :: () => GLenum a -> BufferableData a -> GLenum a -> (M a) ()
+  glBufferDataPtr :: GLenum a -> GLsizeiptr a -> GLenum a -> (M a) ()
+  glBufferSubData :: () => GLenum a -> GLintptr a -> BufferableData a -> (M a) ()
+  glCheckFramebufferStatus :: GLenum a -> (M a) GLenum a
+  glClear :: GLbitfield a -> (M a) ()
+  glClearColor :: GLclampf a -> GLclampf a -> GLclampf a -> GLclampf a -> (M a) ()
+  glClearDepth :: GLclampf a -> (M a) ()
+  glClearStencil :: GLint -> (M a) ()
+  glColorMask :: GLboolean -> GLboolean -> GLboolean -> GLboolean -> (M a) ()
+  glCompileShader :: Shader a -> (M a) ()
+  glCopyTexImage2D :: GLenum a -> GLint -> GLenum a -> GLint -> GLint -> GLsizei -> GLsizei -> GLint -> (M a) ()
+  glCopyTexSubImage2D :: GLenum a -> GLint -> GLint -> GLint -> GLint -> GLint -> GLsizei -> GLsizei -> (M a) ()
+  glCreateBuffer :: (M a) (Buffer)
+  glCreateBufferUnsafe :: (M a) Buffer
+  glCreateBufferUnchecked :: (M a) Buffer
+  glCreateFramebuffer :: (M a) (Framebuffer)
+  glCreateFramebufferUnsafe :: (M a) Framebuffer
+  glCreateFramebufferUnchecked :: (M a) Framebuffer
+  glCreateProgram :: (M a) (Program)
+  glCreateProgramUnsafe :: (M a) Program
+  glCreateProgramUnchecked :: (M a) Program
+  glCreateRenderbuffer :: (M a) (Renderbuffer)
+  glCreateRenderbufferUnsafe :: (M a) Renderbuffer
+  glCreateRenderbufferUnchecked :: (M a) Renderbuffer
+  glCreateShader :: GLenum a -> (M a) (Shader)
+  glCreateShaderUnsafe :: GLenum a -> (M a) Shader
+  glCreateShaderUnchecked :: GLenum a -> (M a) Shader
+  glCreateTexture :: (M a) (Texture)
+  glCreateTextureUnsafe :: (M a) Texture
+  glCreateTextureUnchecked :: (M a) Texture
+  glCullFace :: GLenum a -> (M a) ()
+  glDeleteBuffer :: Buffer a -> (M a) ()
+  glDeleteFramebuffer :: Framebuffer a -> (M a) ()
+  glDeleteProgram :: Program a -> (M a) ()
+  glDeleteRenderbuffer :: Renderbuffer a -> (M a) ()
+  glDeleteShader :: Shader a -> (M a) ()
+  glDeleteTexture :: Texture a -> (M a) ()
+  glDepthFunc :: GLenum a -> (M a) ()
+  glDepthMask :: GLboolean -> (M a) ()
+  glDepthRange :: GLclampf a -> GLclampf a -> (M a) ()
+  glDetachShader :: Program a -> Shader a -> (M a) ()
+  glDisable :: GLenum a -> (M a) ()
+  glDisableVertexAttribArray :: GLuint a -> (M a) ()
+  glDrawArrays :: GLenum a -> GLint -> GLsizei -> (M a) ()
+  glDrawElements :: GLenum a -> GLsizei -> GLenum a -> GLintptr a -> (M a) ()
+  glEnable :: GLenum a -> (M a) ()
+  glEnableVertexAttribArray :: GLuint a -> (M a) ()
+  glFinish :: (M a) ()
+  glFlush :: (M a) ()
+  glFramebufferRenderbuffer :: GLenum a -> GLenum a -> GLenum a -> Renderbuffer a -> (M a) ()
+  glFramebufferTexture2D :: GLenum a -> GLenum a -> GLenum a -> Texture a -> GLint -> (M a) ()
+  glFrontFace :: GLenum a -> (M a) ()
+  glGenerateMipmap :: GLenum a -> (M a) ()
+  glGetActiveAttrib :: Program a -> GLuint a -> (M a) (String)
+  glGetActiveAttribUnsafe :: Program a -> GLuint a -> (M a) String
+  glGetActiveAttribUnchecked :: Program a -> GLuint a -> (M a) String
+  glGetActiveUniform :: Program a -> GLuint a -> (M a) (String)
+  glGetActiveUniformUnsafe :: Program a -> GLuint a -> (M a) String
+  glGetActiveUniformUnchecked :: Program a -> GLuint a -> (M a) String
+  glGetAttachedShaders :: Program a -> (M a) ()
+  glGetAttribLocation :: Program a -> GLstring a -> (M a) GLint
+  glGetBufferParameter :: GLenum a -> GLenum a -> (M a) SomeVal
+  glGetError :: (M a) GLenum a
+  glGetExtension :: GLstring -> (M a) SomeVal
+  glGetFramebufferAttachmentParameter :: GLenum a -> GLenum a -> GLenum a -> (M a) SomeVal
+  glGetParameter :: GLenum a -> (M a) SomeVal
+  glGetProgramParameter :: Program a -> GLenum a -> (M a) SomeVal
+  glGetProgramInfoLog :: Program a -> (M a) String 
+  glGetProgramInfoLogUnsafe :: Program a -> (M a) String
+  glGetProgramInfoLogUnchecked :: Program a -> (M a) String
+  glGetRenderbufferParameter :: GLenum a -> GLenum a -> (M a) SomeVal
+  glGetShaderParameter :: Shader a -> GLenum a -> (M a) SomeVal
+  glGetShaderInfoLog :: Shader a -> (M a) String
+  glGetShaderInfoLogUnsafe :: Shader a -> (M a) result
+  glGetShaderInfoLogUnchecked :: Shader a -> (M a) result
+  glGetShaderPrecisionFormat :: GLenum a -> GLenum a -> (M a) (ShaderPrecisionFormat)
+  glGetShaderPrecisionFormatUnsafe :: GLenum a -> GLenum a -> (M a) ShaderPrecisionFormat
+  glGetShaderPrecisionFormatUnchecked :: GLenum a -> GLenum a -> (M a) ShaderPrecisionFormat
+  glGetShaderSource :: Shader a -> (M a) String
+  glGetShaderSourceUnsafe :: Shader a -> (M a) result
+  glGetShaderSourceUnchecked :: Shader a -> (M a) result
+  glGetSupportedExtensions :: (M a) [result]
+  glGetTexParameter :: GLenum a -> GLenum a -> (M a) SomeVal
+  glGetUniform :: Program a -> UniformLocation a -> (M a) SomeVal
+  glGetUniformLocation :: Program a -> GLstring a -> (M a) (UniformLocation)
+  glGetUniformLocationUnsafe :: Program a -> GLstring a -> (M a) UniformLocation
+  glGetUniformLocationUnchecked :: Program a -> GLstring a -> (M a) UniformLocation
+  glGetVertexAttrib :: GLuint a -> GLenum a -> (M a) SomeVal
+  glGetVertexAttribOffset :: GLuint a -> GLenum a -> (M a) GLsizeiptr a
+  glHint :: GLenum a -> GLenum a -> (M a) ()
+  glIsBuffer :: Buffer a -> (M a) GLboolean
+  glIsContextLost :: (M a) GLboolean
+  glIsEnabled :: GLenum a -> (M a) GLboolean
+  glIsFramebuffer :: Framebuffer a -> (M a) GLboolean
+  glIsProgram :: Program a -> (M a) GLboolean
+  glIsRenderbuffer :: Renderbuffer a -> (M a) GLboolean
+  glIsShader :: Shader a -> (M a) GLboolean
+  glIsTexture :: Texture a -> (M a) GLboolean
+  glLineWidth :: GLfloat -> (M a) ()
+  glLinkProgram :: Program a -> (M a) ()
+  glPixelStorei :: GLenum a -> GLint -> (M a) ()
+  glPolygonOffset :: GLfloat -> GLfloat -> (M a) ()
+  glReleaseShaderCompiler :: (M a) ()
+  glRenderbufferStorage :: GLenum a -> GLenum a -> GLsizei -> GLsizei -> (M a) ()
+  glSampleCoverage :: GLclampf a -> GLboolean -> (M a) ()
+  glScissor :: GLint -> GLint -> GLsizei -> GLsizei -> (M a) ()
+  glShaderSource :: () => Shader a -> GLstring a -> (M a) ()
+  glStencilFunc :: GLenum a -> GLint -> GLuint a -> (M a) ()
+  glStencilFuncSeparate :: GLenum a -> GLenum a -> GLint -> GLuint a -> (M a) ()
+  glStencilMask :: GLuint a -> (M a) ()
+  glStencilMaskSeparate :: GLenum a -> GLuint a -> (M a) ()
+  glStencilOp :: GLenum a -> GLenum a -> GLenum a -> (M a) ()
+  glStencilOpSeparate :: GLenum a -> GLenum a -> GLenum a -> GLenum a -> (M a) ()
+  glTexParameterf :: GLenum a -> GLenum a -> GLfloat -> (M a) ()
+  glTexParameteri :: GLenum a -> GLenum a -> GLint -> (M a) ()
+  --glTexImage2DData :: GLenum a -> GLint -> GLenum a -> GLenum a -> GLenum a -> ImageData -> (M a) ()
+  glTexImage2D :: GLenum a -> GLint -> GLenum a -> GLenum a -> GLenum a -> ImageData -> (M a) ()
+  --glTexImage2DCanvas :: GLenum a -> GLint -> GLenum a -> GLenum a -> GLenum a -> HTMLCanvasElement -> (M a) ()
+  --glTexImage2DVideo :: GLenum a -> GLint -> GLenum a -> GLenum a -> GLenum a -> HTMLVideoElement -> (M a) ()
+  --glTexSubImage2DData :: GLenum a -> GLint -> GLint -> GLint -> GLenum a -> GLenum a -> ImageData -> (M a) ()
+  glTexSubImage2D :: GLenum a -> GLint -> GLint -> GLint -> GLenum a -> GLenum a -> ImageData -> (M a) ()
+  --glTexSubImage2DCanvas :: GLenum a -> GLint -> GLint -> GLint -> GLenum a -> GLenum a -> HTMLCanvasElement -> (M a) ()
+  --glTexSubImage2DVideo :: GLenum a -> GLint -> GLint -> GLint -> GLenum a -> GLenum a -> HTMLVideoElement -> (M a) ()
+  glUniform1f :: UniformLocation a -> GLfloat -> (M a) ()
+  glUniform1fv :: UniformLocation a -> FloatArray -> (M a) ()
+  glUniform1i :: UniformLocation a -> GLint -> (M a) ()
+  glUniform1iv :: UniformLocation a -> IntArray -> (M a) ()
+  glUniform2f :: UniformLocation a -> GLfloat -> GLfloat -> (M a) ()
+  glUniform2fv :: UniformLocation a -> FloatArray -> (M a) ()
+  glUniform2i :: UniformLocation a -> GLint -> GLint -> (M a) ()
+  glUniform2iv :: UniformLocation a -> IntArray -> (M a) ()
+  glUniform3f :: UniformLocation a -> GLfloat -> GLfloat -> GLfloat -> (M a) ()
+  glUniform3fv :: UniformLocation a -> FloatArray -> (M a) ()
+  glUniform3i :: UniformLocation a -> GLint -> GLint -> GLint -> (M a) ()
+  glUniform3iv :: UniformLocation a -> IntArray -> (M a) ()
+  glUniform4f :: UniformLocation a -> GLfloat -> GLfloat -> GLfloat -> GLfloat -> (M a) ()
+  glUniform4fv :: UniformLocation a -> FloatArray -> (M a) ()
+  glUniform4i :: UniformLocation a -> GLint -> GLint -> GLint -> GLint -> (M a) ()
+  glUniform4iv :: UniformLocation a -> IntArray -> (M a) ()
+  glUniformMatrix2fv :: UniformLocation a -> GLboolean -> FloatArray -> (M a) ()
+  glUniformMatrix3fv :: UniformLocation a -> GLboolean -> FloatArray -> (M a) ()
+  glUniformMatrix4fv :: UniformLocation a -> GLboolean -> FloatArray -> (M a) ()
+  glUseProgram :: Program a -> (M a) ()
+  glValidateProgram :: Program a -> (M a) ()
+  glVertexAttrib1f :: GLuint a -> GLfloat -> (M a) ()
+  glVertexAttrib1fv :: GLuint a -> values -> (M a) ()
+  glVertexAttrib2f :: GLuint a -> GLfloat -> GLfloat -> (M a) ()
+  glVertexAttrib2fv :: GLuint a -> values -> (M a) ()
+  glVertexAttrib3f :: GLuint a -> GLfloat -> GLfloat -> GLfloat -> (M a) ()
+  glVertexAttrib3fv :: GLuint a -> values -> (M a) ()
+  glVertexAttrib4f :: GLuint a -> GLfloat -> GLfloat -> GLfloat -> GLfloat -> (M a) ()
+  glVertexAttrib4fv :: GLuint a -> values -> (M a) ()
+  glVertexAttribPointer :: GLuint a -> GLint -> GLenum a -> GLboolean -> GLsizei -> GLintptr a -> (M a) ()
+  glViewport :: GLint -> GLint -> GLsizei -> GLsizei -> (M a) ()
+  glGetDrawingBufferWidth :: (M a) GLsizei
+  glGetDrawingBufferHeight :: (M a) GLsizei

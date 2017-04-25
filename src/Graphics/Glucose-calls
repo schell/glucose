@@ -1,0 +1,512 @@
+--activeTexture :: GLenum a -> m ()
+--attachShader :: Program -> Shader -> m ()
+--bindAttribLocation :: (ToJSString name) => Program -> GLuint -> name -> m ()
+--bindBuffer :: GLenum a -> Buffer -> m ()
+--bindFramebuffer :: GLenum a -> Framebuffer -> m ()
+--bindRenderbuffer :: GLenum a -> Renderbuffer -> m ()
+--bindTexture :: GLenum a -> Texture -> m ()
+--blendColor :: GLclampf -> GLclampf -> GLclampf -> GLclampf -> m ()
+--blendEquation :: GLenum a -> m ()
+--blendEquationSeparate :: GLenum a -> GLenum a -> m ()
+--blendFunc :: GLenum a -> GLenum a -> m ()
+--blendFuncSeparate :: GLenum a -> GLenum a -> GLenum a -> GLenum a -> m ()
+--bufferData :: (IsArrayBuffer data') => GLenum a -> data' -> GLenum a -> m ()
+--bufferDataView :: (IsArrayBufferView data') => GLenum a -> data' -> GLenum a -> m ()
+--bufferDataPtr :: GLenum a -> GLsizeiptr -> GLenum a -> m ()
+--bufferSubData :: (IsArrayBuffer data') => GLenum a -> GLintptr -> data' -> m ()
+--bufferSubDataView :: (IsArrayBufferView data') => GLenum a -> GLintptr -> data' -> m ()
+--checkFramebufferStatus :: GLenum a -> m GLenum
+--checkFramebufferStatus_ :: GLenum a -> m ()
+--clear :: GLbitfield -> m ()
+--clearColor :: GLclampf -> GLclampf -> GLclampf -> GLclampf -> m ()
+--clearDepth :: GLclampf -> m ()
+--clearStencil :: GLint -> m ()
+--colorMask :: GLboolean -> GLboolean -> GLboolean -> GLboolean -> m ()
+--compileShader :: Shader -> m ()
+--compressedTexImage2D :: (IsArrayBufferView data') => GLenum a -> GLint -> GLenum a -> GLsizei -> GLsizei -> GLint -> data' -> m ()
+--compressedTexSubImage2D :: (IsArrayBufferView data') => GLenum a -> GLint -> GLint -> GLint -> GLsizei -> GLsizei -> GLenum a -> data' -> m ()
+--copyTexImage2D :: GLenum a -> GLint -> GLenum a -> GLint -> GLint -> GLsizei -> GLsizei -> GLint -> m ()
+--copyTexSubImage2D :: GLenum a -> GLint -> GLint -> GLint -> GLint -> GLint -> GLsizei -> GLsizei -> m ()
+--createBuffer :: m (Buffer)
+--createBuffer_ :: m ()
+--createBufferUnsafe :: (HasCallStack) => m Buffer
+--createBufferUnchecked :: m Buffer
+--createFramebuffer :: m (Framebuffer)
+--createFramebuffer_ :: m ()
+--createFramebufferUnsafe :: (HasCallStack) => m Framebuffer
+--createFramebufferUnchecked :: m Framebuffer
+--createProgram :: m (Program)
+--createProgram_ :: m ()
+--createProgramUnsafe :: (HasCallStack) => m Program
+--createProgramUnchecked :: m Program
+--createRenderbuffer :: m (Renderbuffer)
+--createRenderbuffer_ :: m ()
+--createRenderbufferUnsafe :: (HasCallStack) => m Renderbuffer
+--createRenderbufferUnchecked :: m Renderbuffer
+--createShader :: GLenum a -> m (Shader)
+--createShader_ :: GLenum a -> m ()
+--createShaderUnsafe :: (HasCallStack) => GLenum a -> m Shader
+--createShaderUnchecked :: GLenum a -> m Shader
+--createTexture :: m (Texture)
+--createTexture_ :: m ()
+--createTextureUnsafe :: (HasCallStack) => m Texture
+--createTextureUnchecked :: m Texture
+--cullFace :: GLenum a -> m ()
+--deleteBuffer :: Buffer -> m ()
+--deleteFramebuffer :: Framebuffer -> m ()
+--deleteProgram :: Program -> m ()
+--deleteRenderbuffer :: Renderbuffer -> m ()
+--deleteShader :: Shader -> m ()
+--deleteTexture :: Texture -> m ()
+--depthFunc :: GLenum a -> m ()
+--depthMask :: GLboolean -> m ()
+--depthRange :: GLclampf -> GLclampf -> m ()
+--detachShader :: Program -> Shader -> m ()
+--disable :: GLenum a -> m ()
+--disableVertexAttribArray :: GLuint -> m ()
+--drawArrays :: GLenum a -> GLint -> GLsizei -> m ()
+--drawElements :: GLenum a -> GLsizei -> GLenum a -> GLintptr -> m ()
+--enable :: GLenum a -> m ()
+--enableVertexAttribArray :: GLuint -> m ()
+--finish :: m ()
+--flush :: m ()
+--framebufferRenderbuffer :: GLenum a -> GLenum a -> GLenum a -> Renderbuffer -> m ()
+--framebufferTexture2D :: GLenum a -> GLenum a -> GLenum a -> Texture -> GLint -> m ()
+--frontFace :: GLenum a -> m ()
+--generateMipmap :: GLenum a -> m ()
+--getActiveAttrib :: Program -> GLuint -> m (ActiveInfo)
+--getActiveAttrib_ :: Program -> GLuint -> m ()
+--getActiveAttribUnsafe :: (HasCallStack) => Program -> GLuint -> m ActiveInfo
+--getActiveAttribUnchecked :: Program -> GLuint -> m ActiveInfo
+--getActiveUniform :: Program -> GLuint -> m (ActiveInfo)
+--getActiveUniform_ :: Program -> GLuint -> m ()
+--getActiveUniformUnsafe :: (HasCallStack) => Program -> GLuint -> m ActiveInfo
+--getActiveUniformUnchecked :: Program -> GLuint -> m ActiveInfo
+--getAttachedShaders :: Program -> m ()
+--getAttribLocation :: (ToJSString name) => Program -> name -> m GLint
+--getAttribLocation_ :: (ToJSString name) => Program -> name -> m ()
+--getBufferParameter :: GLenum a -> GLenum a -> m JSVal
+--getBufferParameter_ :: GLenum a -> GLenum a -> m ()
+--getContextAttributes :: m (ContextAttributes)
+--getContextAttributes_ :: m ()
+--getContextAttributesUnsafe :: (HasCallStack) => m ContextAttributes
+--getContextAttributesUnchecked :: m ContextAttributes
+--getError :: m GLenum
+--getError_ :: m ()
+--getExtension :: (ToJSString name) => name -> m JSVal
+--getExtension_ :: (ToJSString name) => name -> m ()
+--getFramebufferAttachmentParameter :: GLenum a -> GLenum a -> GLenum a -> m JSVal
+--getFramebufferAttachmentParameter_ :: GLenum a -> GLenum a -> GLenum a -> m ()
+--getParameter :: GLenum a -> m JSVal
+--getParameter_ :: GLenum a -> m ()
+--getProgramParameter :: Program -> GLenum a -> m JSVal
+--getProgramParameter_ :: Program -> GLenum a -> m ()
+--getProgramInfoLog :: (FromJSString result) => Program -> m (result)
+--getProgramInfoLog_ :: Program -> m ()
+--getProgramInfoLogUnsafe :: (HasCallStack, FromJSString result) => Program -> m result
+--getProgramInfoLogUnchecked :: (FromJSString result) => Program -> m result
+--getRenderbufferParameter :: GLenum a -> GLenum a -> m JSVal
+--getRenderbufferParameter_ :: GLenum a -> GLenum a -> m ()
+--getShaderParameter :: Shader -> GLenum a -> m JSVal
+--getShaderParameter_ :: Shader -> GLenum a -> m ()
+--getShaderInfoLog :: (FromJSString result) => Shader -> m (result)
+--getShaderInfoLog_ :: Shader -> m ()
+--getShaderInfoLogUnsafe :: (HasCallStack, FromJSString result) => Shader -> m result
+--getShaderInfoLogUnchecked :: (FromJSString result) => Shader -> m result
+--getShaderPrecisionFormat :: GLenum a -> GLenum a -> m (ShaderPrecisionFormat)
+--getShaderPrecisionFormat_ :: GLenum a -> GLenum a -> m ()
+--getShaderPrecisionFormatUnsafe :: (HasCallStack) => GLenum a -> GLenum a -> m ShaderPrecisionFormat
+--getShaderPrecisionFormatUnchecked :: GLenum a -> GLenum a -> m ShaderPrecisionFormat
+--getShaderSource :: (FromJSString result) => Shader -> m (result)
+--getShaderSource_ :: Shader -> m ()
+--getShaderSourceUnsafe :: (HasCallStack, FromJSString result) => Shader -> m result
+--getShaderSourceUnchecked :: (FromJSString result) => Shader -> m result
+--getSupportedExtensions :: (FromJSString result) => m [result]
+--getSupportedExtensions_ :: m ()
+--getTexParameter :: GLenum a -> GLenum a -> m JSVal
+--getTexParameter_ :: GLenum a -> GLenum a -> m ()
+--getUniform :: Program -> UniformLocation -> m JSVal
+--getUniform_ :: Program -> UniformLocation -> m ()
+--getUniformLocation :: (ToJSString name) => Program -> name -> m (UniformLocation)
+--getUniformLocation_ :: (ToJSString name) => Program -> name -> m ()
+--getUniformLocationUnsafe :: (ToJSString name, HasCallStack) => Program -> name -> m UniformLocation
+--getUniformLocationUnchecked :: (ToJSString name) => Program -> name -> m UniformLocation
+--getVertexAttrib :: GLuint -> GLenum a -> m JSVal
+--getVertexAttrib_ :: GLuint -> GLenum a -> m ()
+--getVertexAttribOffset :: GLuint -> GLenum a -> m GLsizeiptr
+--getVertexAttribOffset_ :: GLuint -> GLenum a -> m ()
+--hint :: GLenum a -> GLenum a -> m ()
+--isBuffer :: Buffer -> m GLboolean
+--isBuffer_ :: Buffer -> m ()
+--isContextLost :: m GLboolean
+--isContextLost_ :: m ()
+--isEnabled :: GLenum a -> m GLboolean
+--isEnabled_ :: GLenum a -> m ()
+--isFramebuffer :: Framebuffer -> m GLboolean
+--isFramebuffer_ :: Framebuffer -> m ()
+--isProgram :: Program -> m GLboolean
+--isProgram_ :: Program -> m ()
+--isRenderbuffer :: Renderbuffer -> m GLboolean
+--isRenderbuffer_ :: Renderbuffer -> m ()
+--isShader :: Shader -> m GLboolean
+--isShader_ :: Shader -> m ()
+--isTexture :: Texture -> m GLboolean
+--isTexture_ :: Texture -> m ()
+--lineWidth :: GLfloat -> m ()
+--linkProgram :: Program -> m ()
+--pixelStorei :: GLenum a -> GLint -> m ()
+--polygonOffset :: GLfloat -> GLfloat -> m ()
+--readPixels :: (IsArrayBufferView pixels) => GLint -> GLint -> GLsizei -> GLsizei -> GLenum a -> GLenum a -> pixels -> m ()
+--releaseShaderCompiler :: m ()
+--renderbufferStorage :: GLenum a -> GLenum a -> GLsizei -> GLsizei -> m ()
+--sampleCoverage :: GLclampf -> GLboolean -> m ()
+--scissor :: GLint -> GLint -> GLsizei -> GLsizei -> m ()
+--shaderSource :: (ToJSString string) => Shader -> string -> m ()
+--stencilFunc :: GLenum a -> GLint -> GLuint -> m ()
+--stencilFuncSeparate :: GLenum a -> GLenum a -> GLint -> GLuint -> m ()
+--stencilMask :: GLuint -> m ()
+--stencilMaskSeparate :: GLenum a -> GLuint -> m ()
+--stencilOp :: GLenum a -> GLenum a -> GLenum a -> m ()
+--stencilOpSeparate :: GLenum a -> GLenum a -> GLenum a -> GLenum a -> m ()
+--texParameterf :: GLenum a -> GLenum a -> GLfloat -> m ()
+--texParameteri :: GLenum a -> GLenum a -> GLint -> m ()
+--texImage2DView :: (IsArrayBufferView pixels) => GLenum a -> GLint -> GLenum a -> GLsizei -> GLsizei -> GLint -> GLenum a -> GLenum a -> pixels -> m ()
+--texImage2DData :: GLenum a -> GLint -> GLenum a -> GLenum a -> GLenum a -> ImageData -> m ()
+--texImage2D :: GLenum a -> GLint -> GLenum a -> GLenum a -> GLenum a -> HTMLImageElement -> m ()
+--texImage2DCanvas :: GLenum a -> GLint -> GLenum a -> GLenum a -> GLenum a -> HTMLCanvasElement -> m ()
+--texImage2DVideo :: GLenum a -> GLint -> GLenum a -> GLenum a -> GLenum a -> HTMLVideoElement -> m ()
+--texSubImage2DView :: (IsArrayBufferView pixels) => GLenum a -> GLint -> GLint -> GLint -> GLsizei -> GLsizei -> GLenum a -> GLenum a -> pixels -> m ()
+--texSubImage2DData :: GLenum a -> GLint -> GLint -> GLint -> GLenum a -> GLenum a -> ImageData -> m ()
+--texSubImage2D :: GLenum a -> GLint -> GLint -> GLint -> GLenum a -> GLenum a -> HTMLImageElement -> m ()
+--texSubImage2DCanvas :: GLenum a -> GLint -> GLint -> GLint -> GLenum a -> GLenum a -> HTMLCanvasElement -> m ()
+--texSubImage2DVideo :: GLenum a -> GLint -> GLint -> GLint -> GLenum a -> GLenum a -> HTMLVideoElement -> m ()
+--uniform1f :: UniformLocation -> GLfloat -> m ()
+--uniform1fv :: (IsFloat32Array v) => UniformLocation -> v -> m ()
+--uniform1i :: UniformLocation -> GLint -> m ()
+--uniform1iv :: (IsInt32Array v) => UniformLocation -> v -> m ()
+--uniform2f :: UniformLocation -> GLfloat -> GLfloat -> m ()
+--uniform2fv :: (IsFloat32Array v) => UniformLocation -> v -> m ()
+--uniform2i :: UniformLocation -> GLint -> GLint -> m ()
+--uniform2iv :: (IsInt32Array v) => UniformLocation -> v -> m ()
+--uniform3f :: UniformLocation -> GLfloat -> GLfloat -> GLfloat -> m ()
+--uniform3fv :: (IsFloat32Array v) => UniformLocation -> v -> m ()
+--uniform3i :: UniformLocation -> GLint -> GLint -> GLint -> m ()
+--uniform3iv :: (IsInt32Array v) => UniformLocation -> v -> m ()
+--uniform4f :: UniformLocation -> GLfloat -> GLfloat -> GLfloat -> GLfloat -> m ()
+--uniform4fv :: (IsFloat32Array v) => UniformLocation -> v -> m ()
+--uniform4i :: UniformLocation -> GLint -> GLint -> GLint -> GLint -> m ()
+--uniform4iv :: (IsInt32Array v) => UniformLocation -> v -> m ()
+--uniformMatrix2fv :: (IsFloat32Array array) => UniformLocation -> GLboolean -> array -> m ()
+--uniformMatrix3fv :: (IsFloat32Array array) => UniformLocation -> GLboolean -> array -> m ()
+--uniformMatrix4fv :: (IsFloat32Array array) => UniformLocation -> GLboolean -> array -> m ()
+--useProgram :: Program -> m ()
+--validateProgram :: Program -> m ()
+--vertexAttrib1f :: GLuint -> GLfloat -> m ()
+--vertexAttrib1fv :: (IsFloat32Array values) => GLuint -> values -> m ()
+--vertexAttrib2f :: GLuint -> GLfloat -> GLfloat -> m ()
+--vertexAttrib2fv :: (IsFloat32Array values) => GLuint -> values -> m ()
+--vertexAttrib3f :: GLuint -> GLfloat -> GLfloat -> GLfloat -> m ()
+--vertexAttrib3fv :: (IsFloat32Array values) => GLuint -> values -> m ()
+--vertexAttrib4f :: GLuint -> GLfloat -> GLfloat -> GLfloat -> GLfloat -> m ()
+--vertexAttrib4fv :: (IsFloat32Array values) => GLuint -> values -> m ()
+--vertexAttribPointer :: GLuint -> GLint -> GLenum a -> GLboolean -> GLsizei -> GLintptr -> m ()
+--viewport :: GLint -> GLint -> GLsizei -> GLsizei -> m ()
+gl_DEPTH_BUFFER_BIT :: GLenum a
+gl_STENCIL_BUFFER_BIT :: GLenum a
+gl_COLOR_BUFFER_BIT :: GLenum a
+gl_POINTS :: GLenum a
+gl_LINES :: GLenum a
+gl_LINE_LOOP :: GLenum a
+gl_LINE_STRIP :: GLenum a
+gl_TRIANGLES :: GLenum a
+gl_TRIANGLE_STRIP :: GLenum a
+gl_TRIANGLE_FAN :: GLenum a
+gl_ZERO :: GLenum a
+gl_ONE :: GLenum a
+gl_SRC_COLOR :: GLenum a
+gl_ONE_MINUS_SRC_COLOR :: GLenum a
+gl_SRC_ALPHA :: GLenum a
+gl_ONE_MINUS_SRC_ALPHA :: GLenum a
+gl_DST_ALPHA :: GLenum a
+gl_ONE_MINUS_DST_ALPHA :: GLenum a
+gl_DST_COLOR :: GLenum a
+gl_ONE_MINUS_DST_COLOR :: GLenum a
+gl_SRC_ALPHA_SATURATE :: GLenum a
+gl_FUNC_ADD :: GLenum a
+gl_BLEND_EQUATION :: GLenum a
+gl_BLEND_EQUATION_RGB :: GLenum a
+gl_BLEND_EQUATION_ALPHA :: GLenum a
+gl_FUNC_SUBTRACT :: GLenum a
+gl_FUNC_REVERSE_SUBTRACT :: GLenum a
+gl_BLEND_DST_RGB :: GLenum a
+gl_BLEND_SRC_RGB :: GLenum a
+gl_BLEND_DST_ALPHA :: GLenum a
+gl_BLEND_SRC_ALPHA :: GLenum a
+gl_CONSTANT_COLOR :: GLenum a
+gl_ONE_MINUS_CONSTANT_COLOR :: GLenum a
+gl_CONSTANT_ALPHA :: GLenum a
+gl_ONE_MINUS_CONSTANT_ALPHA :: GLenum a
+gl_BLEND_COLOR :: GLenum a
+gl_ARRAY_BUFFER :: GLenum a
+gl_ELEMENT_ARRAY_BUFFER :: GLenum a
+gl_ARRAY_BUFFER_BINDING :: GLenum a
+gl_ELEMENT_ARRAY_BUFFER_BINDING :: GLenum a
+gl_STREAM_DRAW :: GLenum a
+gl_STATIC_DRAW :: GLenum a
+gl_DYNAMIC_DRAW :: GLenum a
+gl_BUFFER_SIZE :: GLenum a
+gl_BUFFER_USAGE :: GLenum a
+gl_CURRENT_VERTEX_ATTRIB :: GLenum a
+gl_FRONT :: GLenum a
+gl_BACK :: GLenum a
+gl_FRONT_AND_BACK :: GLenum a
+gl_TEXTURE_2D :: GLenum a
+gl_CULL_FACE :: GLenum a
+gl_BLEND :: GLenum a
+gl_DITHER :: GLenum a
+gl_STENCIL_TEST :: GLenum a
+gl_DEPTH_TEST :: GLenum a
+gl_SCISSOR_TEST :: GLenum a
+gl_POLYGON_OFFSET_FILL :: GLenum a
+gl_SAMPLE_ALPHA_TO_COVERAGE :: GLenum a
+gl_SAMPLE_COVERAGE :: GLenum a
+gl_NO_ERROR :: GLenum a
+gl_INVALID_ENUM :: GLenum a
+gl_INVALID_VALUE :: GLenum a
+gl_INVALID_OPERATION :: GLenum a
+gl_OUT_OF_MEMORY :: GLenum a
+gl_CW :: GLenum a
+gl_CCW :: GLenum a
+gl_LINE_WIDTH :: GLenum a
+gl_ALIASED_POINT_SIZE_RANGE :: GLenum a
+gl_ALIASED_LINE_WIDTH_RANGE :: GLenum a
+gl_CULL_FACE_MODE :: GLenum a
+gl_FRONT_FACE :: GLenum a
+gl_DEPTH_RANGE :: GLenum a
+gl_DEPTH_WRITEMASK :: GLenum a
+gl_DEPTH_CLEAR_VALUE :: GLenum a
+gl_DEPTH_FUNC :: GLenum a
+gl_STENCIL_CLEAR_VALUE :: GLenum a
+gl_STENCIL_FUNC :: GLenum a
+gl_STENCIL_FAIL :: GLenum a
+gl_STENCIL_PASS_DEPTH_FAIL :: GLenum a
+gl_STENCIL_PASS_DEPTH_PASS :: GLenum a
+gl_STENCIL_REF :: GLenum a
+gl_STENCIL_VALUE_MASK :: GLenum a
+gl_STENCIL_WRITEMASK :: GLenum a
+gl_STENCIL_BACK_FUNC :: GLenum a
+gl_STENCIL_BACK_FAIL :: GLenum a
+gl_STENCIL_BACK_PASS_DEPTH_FAIL :: GLenum a
+gl_STENCIL_BACK_PASS_DEPTH_PASS :: GLenum a
+gl_STENCIL_BACK_REF :: GLenum a
+gl_STENCIL_BACK_VALUE_MASK :: GLenum a
+gl_STENCIL_BACK_WRITEMASK :: GLenum a
+gl_VIEWPORT :: GLenum a
+gl_SCISSOR_BOX :: GLenum a
+gl_COLOR_CLEAR_VALUE :: GLenum a
+gl_COLOR_WRITEMASK :: GLenum a
+gl_UNPACK_ALIGNMENT :: GLenum a
+gl_PACK_ALIGNMENT :: GLenum a
+gl_MAX_TEXTURE_SIZE :: GLenum a
+gl_MAX_VIEWPORT_DIMS :: GLenum a
+gl_SUBPIXEL_BITS :: GLenum a
+gl_RED_BITS :: GLenum a
+gl_GREEN_BITS :: GLenum a
+gl_BLUE_BITS :: GLenum a
+gl_ALPHA_BITS :: GLenum a
+gl_DEPTH_BITS :: GLenum a
+gl_STENCIL_BITS :: GLenum a
+gl_POLYGON_OFFSET_UNITS :: GLenum a
+gl_POLYGON_OFFSET_FACTOR :: GLenum a
+gl_TEXTURE_BINDING_2D :: GLenum a
+gl_SAMPLE_BUFFERS :: GLenum a
+gl_SAMPLES :: GLenum a
+gl_SAMPLE_COVERAGE_VALUE :: GLenum a
+gl_SAMPLE_COVERAGE_INVERT :: GLenum a
+gl_COMPRESSED_TEXTURE_FORMATS :: GLenum a
+gl_DONT_CARE :: GLenum a
+gl_FASTEST :: GLenum a
+gl_NICEST :: GLenum a
+gl_GENERATE_MIPMAP_HINT :: GLenum a
+gl_BYTE :: GLenum a
+gl_UNSIGNED_BYTE :: GLenum a
+gl_SHORT :: GLenum a
+gl_UNSIGNED_SHORT :: GLenum a
+gl_INT :: GLenum a
+gl_UNSIGNED_INT :: GLenum a
+gl_FLOAT :: GLenum a
+gl_DEPTH_COMPONENT :: GLenum a
+gl_ALPHA :: GLenum a
+gl_RGB :: GLenum a
+gl_RGBA :: GLenum a
+gl_LUMINANCE :: GLenum a
+gl_LUMINANCE_ALPHA :: GLenum a
+gl_UNSIGNED_SHORT_4_4_4_4 :: GLenum a
+gl_UNSIGNED_SHORT_5_5_5_1 :: GLenum a
+gl_UNSIGNED_SHORT_5_6_5 :: GLenum a
+gl_FRAGMENT_SHADER :: GLenum a
+gl_VERTEX_SHADER :: GLenum a
+gl_MAX_VERTEX_ATTRIBS :: GLenum a
+gl_MAX_VERTEX_UNIFORM_VECTORS :: GLenum a
+gl_MAX_VARYING_VECTORS :: GLenum a
+gl_MAX_COMBINED_TEXTURE_IMAGE_UNITS :: GLenum a
+gl_MAX_VERTEX_TEXTURE_IMAGE_UNITS :: GLenum a
+gl_MAX_TEXTURE_IMAGE_UNITS :: GLenum a
+gl_MAX_FRAGMENT_UNIFORM_VECTORS :: GLenum a
+gl_SHADER_TYPE :: GLenum a
+gl_DELETE_STATUS :: GLenum a
+gl_LINK_STATUS :: GLenum a
+gl_VALIDATE_STATUS :: GLenum a
+gl_ATTACHED_SHADERS :: GLenum a
+gl_ACTIVE_UNIFORMS :: GLenum a
+gl_ACTIVE_ATTRIBUTES :: GLenum a
+gl_SHADING_LANGUAGE_VERSION :: GLenum a
+gl_CURRENT_PROGRAM :: GLenum a
+gl_NEVER :: GLenum a
+gl_LESS :: GLenum a
+gl_EQUAL :: GLenum a
+gl_LEQUAL :: GLenum a
+gl_GREATER :: GLenum a
+gl_NOTEQUAL :: GLenum a
+gl_GEQUAL :: GLenum a
+gl_ALWAYS :: GLenum a
+gl_KEEP :: GLenum a
+gl_REPLACE :: GLenum a
+gl_INCR :: GLenum a
+gl_DECR :: GLenum a
+gl_INVERT :: GLenum a
+gl_INCR_WRAP :: GLenum a
+gl_DECR_WRAP :: GLenum a
+gl_VENDOR :: GLenum a
+gl_RENDERER :: GLenum a
+gl_VERSION :: GLenum a
+gl_NEAREST :: GLenum a
+gl_LINEAR :: GLenum a
+gl_NEAREST_MIPMAP_NEAREST :: GLenum a
+gl_LINEAR_MIPMAP_NEAREST :: GLenum a
+gl_NEAREST_MIPMAP_LINEAR :: GLenum a
+gl_LINEAR_MIPMAP_LINEAR :: GLenum a
+gl_TEXTURE_MAG_FILTER :: GLenum a
+gl_TEXTURE_MIN_FILTER :: GLenum a
+gl_TEXTURE_WRAP_S :: GLenum a
+gl_TEXTURE_WRAP_T :: GLenum a
+gl_TEXTURE :: GLenum a
+gl_TEXTURE_CUBE_MAP :: GLenum a
+gl_TEXTURE_BINDING_CUBE_MAP :: GLenum a
+gl_TEXTURE_CUBE_MAP_POSITIVE_X :: GLenum a
+gl_TEXTURE_CUBE_MAP_NEGATIVE_X :: GLenum a
+gl_TEXTURE_CUBE_MAP_POSITIVE_Y :: GLenum a
+gl_TEXTURE_CUBE_MAP_NEGATIVE_Y :: GLenum a
+gl_TEXTURE_CUBE_MAP_POSITIVE_Z :: GLenum a
+gl_TEXTURE_CUBE_MAP_NEGATIVE_Z :: GLenum a
+gl_MAX_CUBE_MAP_TEXTURE_SIZE :: GLenum a
+gl_TEXTURE0 :: GLenum a
+gl_TEXTURE1 :: GLenum a
+gl_TEXTURE2 :: GLenum a
+gl_TEXTURE3 :: GLenum a
+gl_TEXTURE4 :: GLenum a
+gl_TEXTURE5 :: GLenum a
+gl_TEXTURE6 :: GLenum a
+gl_TEXTURE7 :: GLenum a
+gl_TEXTURE8 :: GLenum a
+gl_TEXTURE9 :: GLenum a
+gl_TEXTURE10 :: GLenum a
+gl_TEXTURE11 :: GLenum a
+gl_TEXTURE12 :: GLenum a
+gl_TEXTURE13 :: GLenum a
+gl_TEXTURE14 :: GLenum a
+gl_TEXTURE15 :: GLenum a
+gl_TEXTURE16 :: GLenum a
+gl_TEXTURE17 :: GLenum a
+gl_TEXTURE18 :: GLenum a
+gl_TEXTURE19 :: GLenum a
+gl_TEXTURE20 :: GLenum a
+gl_TEXTURE21 :: GLenum a
+gl_TEXTURE22 :: GLenum a
+gl_TEXTURE23 :: GLenum a
+gl_TEXTURE24 :: GLenum a
+gl_TEXTURE25 :: GLenum a
+gl_TEXTURE26 :: GLenum a
+gl_TEXTURE27 :: GLenum a
+gl_TEXTURE28 :: GLenum a
+gl_TEXTURE29 :: GLenum a
+gl_TEXTURE30 :: GLenum a
+gl_TEXTURE31 :: GLenum a
+gl_ACTIVE_TEXTURE :: GLenum a
+gl_REPEAT :: GLenum a
+gl_CLAMP_TO_EDGE :: GLenum a
+gl_MIRRORED_REPEAT :: GLenum a
+gl_FLOAT_VEC2 :: GLenum a
+gl_FLOAT_VEC3 :: GLenum a
+gl_FLOAT_VEC4 :: GLenum a
+gl_INT_VEC2 :: GLenum a
+gl_INT_VEC3 :: GLenum a
+gl_INT_VEC4 :: GLenum a
+gl_BOOL :: GLenum a
+gl_BOOL_VEC2 :: GLenum a
+gl_BOOL_VEC3 :: GLenum a
+gl_BOOL_VEC4 :: GLenum a
+gl_FLOAT_MAT2 :: GLenum a
+gl_FLOAT_MAT3 :: GLenum a
+gl_FLOAT_MAT4 :: GLenum a
+gl_SAMPLER_2D :: GLenum a
+gl_SAMPLER_CUBE :: GLenum a
+gl_VERTEX_ATTRIB_ARRAY_ENABLED :: GLenum a
+gl_VERTEX_ATTRIB_ARRAY_SIZE :: GLenum a
+gl_VERTEX_ATTRIB_ARRAY_STRIDE :: GLenum a
+gl_VERTEX_ATTRIB_ARRAY_TYPE :: GLenum a
+gl_VERTEX_ATTRIB_ARRAY_NORMALIZED :: GLenum a
+gl_VERTEX_ATTRIB_ARRAY_POINTER :: GLenum a
+gl_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING :: GLenum a
+gl_IMPLEMENTATION_COLOR_READ_TYPE :: GLenum a
+gl_IMPLEMENTATION_COLOR_READ_FORMAT :: GLenum a
+gl_COMPILE_STATUS :: GLenum a
+gl_LOW_FLOAT :: GLenum a
+gl_MEDIUM_FLOAT :: GLenum a
+gl_HIGH_FLOAT :: GLenum a
+gl_LOW_INT :: GLenum a
+gl_MEDIUM_INT :: GLenum a
+gl_HIGH_INT :: GLenum a
+gl_FRAMEBUFFER :: GLenum a
+gl_RENDERBUFFER :: GLenum a
+gl_RGBA4 :: GLenum a
+gl_RGB5_A1 :: GLenum a
+gl_RGB565 :: GLenum a
+gl_DEPTH_COMPONENT16 :: GLenum a
+gl_STENCIL_INDEX :: GLenum a
+gl_STENCIL_INDEX8 :: GLenum a
+gl_DEPTH_STENCIL :: GLenum a
+gl_RENDERBUFFER_WIDTH :: GLenum a
+gl_RENDERBUFFER_HEIGHT :: GLenum a
+gl_RENDERBUFFER_INTERNAL_FORMAT :: GLenum a
+gl_RENDERBUFFER_RED_SIZE :: GLenum a
+gl_RENDERBUFFER_GREEN_SIZE :: GLenum a
+gl_RENDERBUFFER_BLUE_SIZE :: GLenum a
+gl_RENDERBUFFER_ALPHA_SIZE :: GLenum a
+gl_RENDERBUFFER_DEPTH_SIZE :: GLenum a
+gl_RENDERBUFFER_STENCIL_SIZE :: GLenum a
+gl_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE :: GLenum a
+gl_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME :: GLenum a
+gl_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL :: GLenum a
+gl_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE :: GLenum a
+gl_COLOR_ATTACHMENT0 :: GLenum a
+gl_DEPTH_ATTACHMENT :: GLenum a
+gl_STENCIL_ATTACHMENT :: GLenum a
+gl_DEPTH_STENCIL_ATTACHMENT :: GLenum a
+gl_NONE :: GLenum a
+gl_FRAMEBUFFER_COMPLETE :: GLenum a
+gl_FRAMEBUFFER_INCOMPLETE_ATTACHMENT :: GLenum a
+gl_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT :: GLenum a
+gl_FRAMEBUFFER_INCOMPLETE_DIMENSIONS :: GLenum a
+gl_FRAMEBUFFER_UNSUPPORTED :: GLenum a
+gl_FRAMEBUFFER_BINDING :: GLenum a
+gl_RENDERBUFFER_BINDING :: GLenum a
+gl_MAX_RENDERBUFFER_SIZE :: GLenum a
+gl_INVALID_FRAMEBUFFER_OPERATION :: GLenum a
+gl_UNPACK_FLIP_Y_WEBGL :: GLenum a
+gl_UNPACK_PREMULTIPLY_ALPHA_WEBGL :: GLenum a
+gl_CONTEXT_LOST_WEBGL :: GLenum a
+gl_UNPACK_COLORSPACE_CONVERSION_WEBGL :: GLenum a
+gl_BROWSER_DEFAULT_WEBGL :: GLenum a
+--getDrawingBufferWidth :: m GLsizei
+--getDrawingBufferHeight :: m GLsizei
