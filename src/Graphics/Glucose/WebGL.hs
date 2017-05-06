@@ -1,52 +1,30 @@
 {-# LANGUAGE AllowAmbiguousTypes   #-}
-{-# LANGUAGE ConstraintKinds       #-}
-{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Graphics.Glucose.WebGL where
 
---import           Data.Vector            (Vector)
---import qualified Data.Vector            as V
---import           Foreign.C.String
---import           Foreign.Marshal.Array               (allocaArray, peekArray,
---                                                      withArray)
---import           Foreign.Marshal.Utils               (with)
---import           Foreign.Ptr                         (Ptr, intPtrToPtr, nullPtr)
---import           Foreign.Storable                    (Storable)
-import           Control.Monad.IO.Class              (MonadIO, liftIO)
-import           Control.Monad.Reader                (MonadReader, ask, asks)
-import           GHCJS.DOM.Types                     as GL
-import           GHCJS.DOM.WebGLRenderingContextBase as GL
+import           Data.Maybe                           (fromJust, fromMaybe)
+import qualified GHCJS.Buffer                         as B
+import           GHCJS.Marshal                        (fromJSValUnchecked)
+import           JavaScript.TypedArray                as TA
+import           JavaScript.TypedArray.Internal.Types as TA
+import           JSDOM.ImageData
+import           JSDOM.Types                          as GL
+import           JSDOM.WebGLActiveInfo
+import           JSDOM.WebGLRenderingContextBase      as GL
+import           JSDOM.WebGLShaderPrecisionFormat
+import           Language.Javascript.JSaddle.Types    (MonadJSM, liftJSM)
 
 import           Graphics.Glucose
 
 data WebGL = WebGL
 
---createWith :: (Storable b, Num a) => (a -> Ptr b -> IO ()) -> IO b
---createWith f = do
---  [x] <- allocaArray 1 $ \ptr -> do
---    f 1 ptr
---    peekArray 1 ptr
---  return x
---
---deleteWith :: (Storable b, Num a) => (a -> Ptr b -> IO ()) -> b -> IO ()
---deleteWith f b = withArray [b] $ f 1
---
---getActiveThing f program index =
---  allocaArray 1 $ \lenPtr ->
---    allocaArray 1 $ \szPtr ->
---      allocaArray 1 $ \typPtr ->
---        withCString (replicate 64 ' ') $ \cStr -> do
---          f program index 64 lenPtr szPtr typPtr cStr
---          [len] <- peekArray 1 lenPtr
---          [sz]  <- peekArray 1 szPtr
---          [typ] <- peekArray 1 typPtr
---          str   <- peekCString cStr
---          return (len, sz, typ, str)
+-- #ifdef ghcjs_HOST_OS
 
-class (MonadIO m, MonadJSM m) => WebGLConstraint m where
+class MonadJSM m => WebGLConstraint m where
   readCtx :: m WebGLRenderingContextBase
 
 instance GLES WebGL where
@@ -72,100 +50,151 @@ instance GLES WebGL where
   type BufferableData  WebGL = GL.ArrayBuffer
   type ImageData       WebGL = GL.ImageData
 
-  type Buffer          WebGL = GL.GLuint
-  type Framebuffer     WebGL = GL.GLuint
-  type Renderbuffer    WebGL = GL.GLuint
+  type Buffer          WebGL = GL.WebGLBuffer
+  type Framebuffer     WebGL = GL.WebGLFramebuffer
+  type Renderbuffer    WebGL = GL.WebGLRenderbuffer
   type FloatArray      WebGL = GL.Float32Array
   type IntArray        WebGL = GL.Int32Array
   type UintArray       WebGL = GL.Uint32Array
-  type Extension       WebGL = ()
+  type Extension       WebGL = JSVal
 
-  glActiveTexture texture = readCtx >>= \ctx -> GL.activeTexture ctx texture
+  glActiveTexture texture = readCtx >>= \ctx ->
+    GL.activeTexture ctx texture
   glAttachShader program shader = readCtx >>= \ctx ->
     GL.attachShader ctx (Just program) (Just shader)
-  glBindAttribLocation p n s = withCString s $ GL.bindAttribLocation p n
-  glBindBuffer = GL.bindBuffer
-  glBindFramebuffer = GL.bindFramebuffer
-  glBindRenderbuffer = GL.bindRenderbuffer
-  glBindTexture = GL.bindTexture
-  glBlendColor = GL.blendColor
-  glBlendEquation = GL.blendEquation
-  glBlendEquationSeparate = GL.blendEquationSeparate
-  glBlendFunc = GL.blendFunc
-  glBlendFuncSeparate = GL.blendFuncSeparate
-  glBufferData target = uncurry $ GL.bufferData target
-  glBufferSubData target offset = uncurry $ GL.bufferSubData target offset
-  glCheckFramebufferStatus = GL.checkFramebufferStatus
-  glClear = GL.clear
-  glClearColor = GL.clearColor
-  glClearDepth = GL.clearDepth . realToFrac
-  glClearStencil = GL.clearStencil
-  glColorMask = GL.colorMask
-  glCompileShader = GL.compileShader
-  glCopyTexImage2D = GL.copyTexImage2D
-  glCopyTexSubImage2D = GL.copyTexSubImage2D
-  glCreateBuffer = createWith GL.createBuffer
-  glCreateFramebuffer = createWith GL.createFramebuffer
-  glCreateProgram = GL.createProgram
-  glCreateRenderbuffer = createWith GL.createRenderbuffer
-  glCreateShader = GL.createShader
-  glCreateTexture = createWith GL.createTexture
-  glCullFace = GL.cullFace
-  glDeleteBuffer = deleteWith GL.deleteBuffer
-  glDeleteFramebuffer = deleteWith GL.deleteFramebuffer
-  glDeleteProgram = GL.deleteProgram
-  glDeleteRenderbuffer = deleteWith GL.deleteRenderbuffer
-  glDeleteShader = GL.deleteShader
-  glDeleteTexture = deleteWith GL.deleteTexture
-  glDepthFunc = GL.depthFunc
-  glDepthMask = GL.depthMask
-  glDepthRange x y = GL.depthRange (realToFrac x) (realToFrac y)
-  glDetachShader = GL.detachShader
-  glDisable = GL.disable
-  glDisableVertexAttribArray = GL.disableVertexAttribArray
-  glDrawArrays = GL.drawArrays
-  glDrawElements = GL.drawElements
-  glEnable = GL.enable
-  glEnableVertexAttribArray = GL.enableVertexAttribArray
-  glFinish = GL.finish
-  glFlush = GL.flush
-  glFramebufferRenderbuffer = GL.framebufferRenderbuffer
-  glFramebufferTexture2D = GL.framebufferTexture2D
-  glFrontFace = GL.frontFace
-  glGenerateMipmap = GL.generateMipmap
-  glGetActiveAttrib = getActiveThing GL.getActiveAttrib
-  glGetActiveUniform = getActiveThing GL.getActiveUniform
-  glGetAttachedShaders program =
-    allocaArray 1 $ \countPtr ->
-      allocaArray 256 $ \shadersPtr -> do
-        GL.getAttachedShaders program 256 countPtr shadersPtr
-        [count] <- peekArray 1 countPtr
-        peekArray (fromIntegral count) shadersPtr
-  glGetAttribLocation program name =
-    withCString name $ GL.getAttribLocation program
-  glGetBufferParameter target pname = do
-    [i] <- allocaArray 1 $ \ptr -> do
-      GL.getBufferParameter target pname ptr
-      peekArray 1 ptr
+  glBindAttribLocation program loc name = readCtx >>= \ctx ->
+    GL.bindAttribLocation ctx (Just program) loc name
+  glBindBuffer enum buffer = readCtx >>= \ctx ->
+    GL.bindBuffer ctx enum (Just buffer)
+  glBindFramebuffer enum framebuffer = readCtx >>= \ctx ->
+    GL.bindFramebuffer ctx enum (Just framebuffer)
+  glBindRenderbuffer enum renderbuffer = readCtx >>= \ctx ->
+    GL.bindRenderbuffer ctx enum (Just renderbuffer)
+  glBindTexture enum texture = readCtx >>= \ctx ->
+    GL.bindTexture ctx enum (Just texture)
+  glBlendColor a b c d = readCtx >>= \ctx ->
+    GL.blendColor ctx a b c d
+  glBlendEquation enum = readCtx >>= \ctx ->
+    GL.blendEquation ctx enum
+  glBlendEquationSeparate a b = readCtx >>= \ctx ->
+    GL.blendEquationSeparate ctx a b
+  glBlendFunc a b = readCtx >>= \ctx ->
+    GL.blendFunc ctx a b
+  glBlendFuncSeparate a b c d = readCtx >>= \ctx ->
+    GL.blendFuncSeparate ctx a b c d
+  glBufferData target bufferdata usage = readCtx >>= \ctx ->
+    GL.bufferData ctx target (Just bufferdata) usage
+  glBufferSubData target offset bufferdata = readCtx >>= \ctx ->
+    GL.bufferSubData ctx target offset (Just bufferdata)
+  glCheckFramebufferStatus target = readCtx >>= \ctx ->
+    GL.checkFramebufferStatus ctx target
+  glClear bitfield = readCtx >>= \ctx ->
+    GL.clear ctx bitfield
+  glClearColor r g b a = readCtx >>= \ctx ->
+    GL.clearColor ctx r g b a
+  glClearDepth val = readCtx >>= \ctx ->
+    GL.clearDepth ctx val
+  glClearStencil val = readCtx >>= \ctx ->
+    GL.clearStencil ctx val
+  glColorMask a b c d = readCtx >>= \ctx ->
+    GL.colorMask ctx a b c d
+  glCompileShader shader = readCtx >>= \ctx ->
+    GL.compileShader ctx (Just shader)
+  glCopyTexImage2D target level internalformat x y w h _ = readCtx >>= \ctx ->
+    GL.copyTexImage2D ctx target level internalformat x y w h 0
+  glCopyTexSubImage2D target level xoffset yoffset x y w h = readCtx >>= \ctx ->
+    GL.copyTexSubImage2D ctx target level xoffset yoffset x y w h
+  glCreateBuffer =
+    GL.createBuffer =<< readCtx
+  glCreateFramebuffer =
+    GL.createFramebuffer =<< readCtx
+  glCreateProgram =
+    GL.createProgram =<< readCtx
+  glCreateRenderbuffer =
+    GL.createRenderbuffer =<< readCtx
+  glCreateShader shadertype = readCtx >>= \ctx ->
+    GL.createShader ctx shadertype
+  glCreateTexture =
+    GL.createTexture =<< readCtx
+  glCullFace mode = readCtx >>= \ctx ->
+    GL.cullFace ctx mode
+  glDeleteBuffer buffer = readCtx >>= \ctx ->
+    GL.deleteBuffer ctx $ Just buffer
+  glDeleteFramebuffer framebuffer = readCtx >>= \ctx ->
+    GL.deleteFramebuffer ctx $ Just framebuffer
+  glDeleteProgram program = readCtx >>= \ctx ->
+    GL.deleteProgram ctx $ Just program
+  glDeleteRenderbuffer renderbuffer = readCtx >>= \ctx ->
+    GL.deleteRenderbuffer ctx $ Just renderbuffer
+  glDeleteShader shader = readCtx >>= \ctx ->
+    GL.deleteShader ctx $ Just shader
+  glDeleteTexture tex = readCtx >>= \ctx ->
+    GL.deleteTexture ctx $ Just tex
+  glDepthFunc func = readCtx >>= \ctx ->
+    GL.depthFunc ctx func
+  glDepthMask flag = readCtx >>= \ctx ->
+    GL.depthMask ctx flag
+  glDepthRange znear zfar = readCtx >>= \ctx ->
+    GL.depthRange ctx (realToFrac znear) (realToFrac zfar)
+  glDetachShader program shader = readCtx >>= \ctx ->
+    GL.detachShader ctx (Just program) (Just shader)
+  glDisable val = readCtx >>= \ctx ->
+    GL.disable ctx val
+  glDisableVertexAttribArray attrib = readCtx >>= \ctx ->
+    GL.disableVertexAttribArray ctx attrib
+  glDrawArrays enum int size = readCtx >>= \ctx ->
+    GL.drawArrays ctx enum int size
+  glDrawElements enum size enum2 ptr = readCtx >>= \ctx ->
+    GL.drawElements ctx enum size enum2 ptr
+  glEnable enum = readCtx >>= \ctx -> GL.enable ctx enum
+  glEnableVertexAttribArray uint = readCtx >>= \ctx ->
+    GL.enableVertexAttribArray ctx uint
+  glFinish = readCtx >>= GL.finish
+  glFlush = readCtx >>= GL.flush
+  glFramebufferRenderbuffer a b c renderbuffer = readCtx >>= \ctx ->
+    GL.framebufferRenderbuffer ctx a b c (Just renderbuffer)
+  glFramebufferTexture2D a b c texture int = readCtx >>= \ctx ->
+    GL.framebufferTexture2D ctx a b c (Just texture) int
+  glFrontFace enum = readCtx >>= \ctx ->
+    GL.frontFace ctx enum
+  glGenerateMipmap enum = readCtx >>= \ctx ->
+    GL.generateMipmap ctx enum
+  glGetActiveAttrib program loc = readCtx >>= \ctx -> do
+    info <- GL.getActiveAttrib ctx (Just program) loc
+    ActiveInfo <$> (fromIntegral <$> getSize info)
+               <*> (fromIntegral <$> getType info)
+               <*> getName info
+  glGetActiveUniform program loc = readCtx >>= \ctx -> do
+    info <- GL.getActiveUniform ctx (Just program) loc
+    ActiveInfo <$> (fromIntegral <$> getSize info)
+               <*> (fromIntegral <$> getType info)
+               <*> getName info
+  glGetAttachedShaders program = readCtx >>= \ctx ->
+    fromMaybe [] <$> GL.getAttachedShaders ctx (Just program)
+  glGetAttribLocation program name = readCtx >>= \ctx ->
+    GL.getAttribLocation ctx (Just program) name
+  glGetBufferParameter target pname = readCtx >>= \ctx -> do
+    jsval <- GL.getBufferParameter ctx target pname
+    i     <- liftJSM $ fromJSValUnchecked jsval
     return $ if target == GL.BUFFER_SIZE
-      then Left  $ fromIntegral i
+      then Left i
       else Right $ fromIntegral i
-  glGetError = GL.getError
-  glGetExtension = const $ return Nothing
-  glGetFramebufferAttachmentParameter target attachment pname
-    | pname `elem` [ GL.FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE
-                   , GL.FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE
-                   ] =
-      GLESGLenum . fromIntegral <$> getVal
-    | pname == GL.FRAMEBUFFER_ATTACHMENT_OBJECT_NAME =
-      GLESTexture . fromIntegral <$> getVal
-    | pname == GL.FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL =
-      GLESGLint . fromIntegral <$> getVal
-    | otherwise = return GLESNone
-    where getVal = allocaArray 1 $ \ptr -> do
-            GL.getFramebufferAttachmentParameter target attachment pname ptr
-            [val] <- peekArray 1 ptr
-            return val
+  glGetError = readCtx >>= GL.getError
+  glGetExtension name = readCtx >>= \ctx ->
+    liftJSM . maybeNullOrUndefined =<< GL.getExtension ctx name
+  glGetFramebufferAttachmentParameter target attachment pname =
+    readCtx >>= \ctx -> do
+      jsval <- GL.getFramebufferAttachmentParameter ctx target attachment pname
+      liftJSM $ case () of
+        _
+          | pname `elem` [ GL.FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE
+                        , GL.FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE
+                        ] -> GLESGLenum <$> fromJSValUnchecked jsval
+          | pname == GL.FRAMEBUFFER_ATTACHMENT_OBJECT_NAME ->
+            GLESTexture <$> fromJSValUnchecked jsval
+          | pname == GL.FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL ->
+            GLESGLint <$> fromJSValUnchecked jsval
+          | otherwise -> return GLESNone
   -- | TODO: Flesh this out
   --glGetParameter pname
   --  --https://www.khronos.org/registry/OpenGL-Refpages/gl2.1/xhtml/glGet.xml
@@ -260,8 +289,8 @@ instance GLES WebGL where
   --  WebGLTexture || pname == GL.TEXTURE_BINDING_CUBE_MAP
   --  sequence<GLboolean> (with 4 values) | pname == GL.COLOR_WRITEMASK
   --  | otherwise = return GLESNone
-  glGetProgramParameter program pname = do
-    glint <- GL.getProgramParameter program pname
+  glGetProgramParameter program pname = readCtx >>= \ctx -> do
+    jsval <- GL.getProgramParameter ctx (Just program) pname
     let intValues =
             -- Returns a GLint indicating the number of attached shaders to a program.
           [ GL.ATTACHED_SHADERS
@@ -270,147 +299,200 @@ instance GLES WebGL where
             -- Returns a GLint indicating the number of active uniform variables to a program.
           , GL.ACTIVE_UNIFORMS
           ]
-    return $ if pname `elem` intValues
-               then Right glint
-               else Left $ fromIntegral glint
+    liftJSM $ if pname `elem` intValues
+               then Right <$> fromJSValUnchecked jsval
+               else Left <$> fromJSValUnchecked jsval
 
-  glGetProgramInfoLog program = withCString (replicate 1024 ' ') $ \ptr -> do
-    GL.getProgramInfoLog program 1024 nullPtr ptr
-    peekCString ptr
-  glGetRenderbufferParameter target pname = allocaArray 1 $ \ptr -> do
-    GL.getRenderbufferParameter target pname ptr
-    [params] <- peekArray 1 ptr
-    return $
+  glGetProgramInfoLog program = readCtx >>= \ctx ->
+    fromMaybe "" <$> GL.getProgramInfoLog ctx (Just program)
+  glGetRenderbufferParameter target pname = readCtx >>= \ctx -> do
+    jsval <- GL.getRenderbufferParameter ctx target pname
+    liftJSM $
       if pname == GL.RENDERBUFFER_INTERNAL_FORMAT
-      then Right $ fromIntegral params
-      else Left params
-  glGetShaderParameter shader pname = readCtx >>= \ctx ->
-    gl.getShaderParameter ctx shader pname
-  glGetShaderInfoLog shader = readCtx >>= \ctx -> GL.getShaderInfoLog ctx shader
-  glGetShaderPrecisionFormat shaderType precisionType =
-    allocaArray 1 $ \precisionPtr -> allocaArray 2 $ \rangePtr -> do
-      GL.getShaderPrecisionFormat shaderType precisionType rangePtr precisionPtr
-      [precision]          <- peekArray 1 precisionPtr
-      [rangeMin, rangeMax] <- peekArray 2 rangePtr
-      return ShaderPrecisionFormat { spfRangeMin  = rangeMin
-                                   , spfRangeMax  = rangeMax
-                                   , spfPrecision = precision
-                                   }
-  glGetShaderSource shader = GL.getShaderSource
-  glGetSupportedExtensions = GL.getSupportedExtensions
+      then Right <$> fromJSValUnchecked jsval
+      else Left <$> fromJSValUnchecked jsval
+  glGetShaderParameter shader pname = readCtx >>= \ctx -> do
+    jsval <- GL.getShaderParameter ctx (Just shader) pname
+    liftJSM $ if pname `elem` [GL.DELETE_STATUS, GL.COMPILE_STATUS]
+      then Left <$> fromJSValUnchecked jsval
+      else Right <$> fromJSValUnchecked jsval
+  glGetShaderInfoLog shader = readCtx >>= \ctx -> do
+    mlog <- GL.getShaderInfoLog ctx (Just shader)
+    return $ fromMaybe "" mlog
+  glGetShaderPrecisionFormat shaderType precisionType = readCtx >>= \ctx -> do
+    fmt <- GL.getShaderPrecisionFormat ctx shaderType precisionType
+    precision <- getPrecision fmt
+    rangeMin  <- getRangeMin fmt
+    rangeMax  <- getRangeMax fmt
+    return ShaderPrecisionFormat { spfRangeMin  = fromIntegral rangeMin
+                                 , spfRangeMax  = fromIntegral rangeMax
+                                 , spfPrecision = fromIntegral precision
+                                 }
+  glGetShaderSource shader = readCtx >>= \ctx ->
+    fromMaybe "" <$> GL.getShaderSource ctx (Just shader)
+  glGetSupportedExtensions = readCtx >>= \ctx ->
+    fromMaybe [] <$> GL.getSupportedExtensions ctx
   glGetTexParameter target pname = readCtx >>= \ctx -> do
-    jsval <- GL.getTexParameter target pname
-    return $ case () of
+    jsval <- GL.getTexParameter ctx target pname
+    liftJSM $ case () of
       () | pname `elem` [ GL.TEXTURE_MAG_FILTER
                         , GL.TEXTURE_MIN_FILTER
                         , GL.TEXTURE_WRAP_S
                         , GL.TEXTURE_WRAP_T
-                        ] -> GLESGLenum $ fromJSval jsval
-
-         -- | pname == GL.TEXTURE_IMMUTABLE_FORMAT =
-         --     allocaArray 1 $ \ptr -> do
-         --       GL.getTextureParameteriv target pname ptr
-         --       [bool] <- peekArray 1 ptr
-         --       return $ GLESGLboolean $ fromIntegral bool
-
-         -- | pname == GL.TEXTURE_IMMUTABLE_LEVELS =
-         --   allocaArray 1 $ \ptr -> do
-         --     GL.getTextureParameterIuiv target pname ptr
-         --     [gluint] <- peekArray 1 ptr
-         --     return $ GLESGLuint gluint
+                        ] -> GLESGLenum <$> fromJSValUnchecked jsval
+         -- WebGL2 stuff
+         -- | pname == GL.TEXTURE_IMMUTABLE_FORMAT ->
+         --   GLESGLboolean <$> fromJSValUnchecked bool
+         --
+         -- | pname == GL.TEXTURE_IMMUTABLE_LEVELS ->
+         --     GLESGLuint <$> fromJSValUnchecked jsval
 
          -- | pname `elem` [ GL.TEXTURE_BASE_LEVEL
          --                , GL.TEXTURE_MAX_LEVEL
-         --                ] = -- GLint
-         --   allocaArray 1 $ \ptr -> do
-         --     GL.getTextureParameteriv target pname ptr
-         --     [glint] <- peekArray 1 ptr
-         --     return $ GLESGLint glint
+         --                ] -> -- GLint
+         --   GLESGLint <$> fromJSValUnchecked jsval
 
          -- | pname `elem` [ GL.TEXTURE_MAX_LOD
          --                , GL.TEXTURE_MIN_LOD
-         --                ] = -- GLfloat
-         --   allocaArray 1 $ \ptr -> do
-         --     GL.getTextureParameterfv target pname ptr
-         --     [glfloat] <- peekArray 1 ptr
-         --     return $ GLESGLfloat glfloat
+         --                ] -> -- GLfloat
+         --   GLESGLfloat <$> fromJSValUnchecked jsval
          | otherwise -> return GLESNone
-  glGetUniformfv program location outArray = readCtx >>= \ctx -> do
-    jsval <- GL.getUniform ctx (Just program) (Just location)
-    mf32array <- liftJSM $ ((pFromJSVal :: _) jsval :: _)
-
-    case mf32array of
-        Just f32array -> return f32array
-        Nothing       -> return ()
+  glGetUniformfv program location _ = readCtx >>= \ctx ->
+    liftJSM . fromJSVal =<< GL.getUniform ctx (Just program) (Just location)
   glGetUniformiv program location _ = readCtx >>= \ctx ->
-    GL.getUniform program location
-  glGetUniformLocation program str =
-    withCString str $ GL.getUniformLocation program
-  glGetVertexAttribfv index pname = GL.getVertexAttrib index pname . snd
-  glGetVertexAttribiv index pname = GL.getVertexAttrib index pname . snd
-  glHint = GL.hint
-  glIsBuffer = GL.isBuffer
-  glIsContextLost = return 0
-  glIsEnabled = GL.isEnabled
-  glIsFramebuffer = GL.isFramebuffer
-  glIsProgram = GL.isProgram
-  glIsRenderbuffer = GL.isRenderbuffer
-  glIsShader = GL.isShader
-  glIsTexture = GL.isTexture
-  glLineWidth = GL.lineWidth
-  glLinkProgram = GL.linkProgram
-  glPixelStorei = GL.pixelStorei
-  glPolygonOffset = GL.polygonOffset
-  glReleaseShaderCompiler = GL.releaseShaderCompiler
-  glRenderbufferStorage = GL.renderbufferStorage
-  glSampleCoverage = GL.sampleCoverage
-  glScissor = GL.scissor
-  glShaderSource shader src = withCString src $ \ptr ->
-    with ptr $ \ptrptr -> GL.shaderSource shader 1 ptrptr nullPtr
-  glStencilFunc = GL.stencilFunc
-  glStencilFuncSeparate = GL.stencilFuncSeparate
-  glStencilMask = GL.stencilMask
-  glStencilMaskSeparate = GL.stencilMaskSeparate
-  glStencilOp = GL.stencilOp
-  glStencilOpSeparate = GL.stencilOpSeparate
-  glTexParameterf = GL.texParameterf
-  glTexParameteri = GL.texParameteri
-  glTexImage2D target level internalFormat format typ ((w, h), dat) =
-    GL.texImage2D target level internalFormat (fromIntegral w) (fromIntegral h) 0 format typ dat
-  glTexSubImage2D target level x y format typ ((w, h), dat) =
-    GL.texSubImage2D target level x y (fromIntegral w) (fromIntegral h) format typ dat
-  glUniform1f  = GL.getUniform
-  glUniform1fv loc (sz, dat) = GL.getUniform loc sz dat
-  glUniform1i  = GL.getUniform
-  glUniform1iv loc (sz, dat) = GL.getUniform loc sz dat
-  glUniform2f  = GL.getUniform
-  glUniform2fv loc (sz, dat) = GL.getUniform loc sz dat
-  glUniform2i  = GL.getUniform
-  glUniform2iv loc (sz, dat) = GL.getUniform loc sz dat
-  glUniform3f  = GL.getUniform
-  glUniform3fv loc (sz, dat) = GL.getUniform loc sz dat
-  glUniform3i  = GL.getUniform
-  glUniform3iv loc (sz, dat) = GL.getUniform loc sz dat
-  glUniform4f  = GL.getUniform
-  glUniform4fv loc (sz, dat) = GL.getUniform loc sz dat
-  glUniform4i  = GL.getUniform
-  glUniform4iv loc (sz, dat) = GL.getUniform loc sz dat
-  glUniformMatrix2fv loc trans (sz, dat) = GL.uniformMatrix2fv loc sz trans dat
-  glUniformMatrix3fv loc trans (sz, dat) = GL.uniformMatrix3fv loc sz trans dat
-  glUniformMatrix4fv loc trans (sz, dat) = GL.uniformMatrix4fv loc sz trans dat
-  glUseProgram = GL.useProgram
-  glValidateProgram = GL.validateProgram
-  glVertexAttrib1f = GL.vertexAttrib1f
-  glVertexAttrib1fv loc (_, dat) = GL.vertexAttrib1fv loc dat
-  glVertexAttrib2f = GL.vertexAttrib2f
-  glVertexAttrib2fv loc (_, dat) = GL.vertexAttrib2fv loc dat
-  glVertexAttrib3f = GL.vertexAttrib3f
-  glVertexAttrib3fv loc (_, dat) = GL.vertexAttrib3fv loc dat
-  glVertexAttrib4f = GL.vertexAttrib4f
-  glVertexAttrib4fv loc (_, dat) = GL.vertexAttrib4fv loc dat
-  glVertexAttribPointer index sz typ normed stride n =
-    GL.vertexAttribPointer index sz typ normed stride (intPtrToPtr $ fromIntegral n)
-  glViewport = GL.viewport
+    liftJSM . fromJSVal =<< GL.getUniform ctx (Just program) (Just location)
+  glGetUniformLocation program str = readCtx >>= \ctx ->
+    GL.getUniformLocation ctx (Just program) str
+  glGetVertexAttribfv index pname _
+    | pname == GL.CURRENT_VERTEX_ATTRIB = readCtx >>= \ctx ->
+      liftJSM . fromJSVal =<< GL.getVertexAttrib ctx index pname
+    | otherwise = return Nothing
+  glGetVertexAttribiv index pname _
+    | pname /= GL.CURRENT_VERTEX_ATTRIB = readCtx >>= \ctx -> do
+      jsval <- GL.getVertexAttrib ctx index pname
+      liftJSM $ fromJSVal jsval >>= \case
+        Nothing    -> return Nothing
+        Just glint ->  do
+          array :: IOInt32Array <- create 1
+          setIndex 0 glint array
+          undefined array
+    | otherwise = return Nothing
+  glHint a b = readCtx >>= \ctx ->
+    GL.hint ctx a b
+  glIsBuffer buffer = readCtx >>= \ctx ->
+    GL.isBuffer ctx $ Just buffer
+  glIsContextLost = readCtx >>= GL.isContextLost
+  glIsEnabled enum = readCtx >>= \ctx ->
+    GL.isEnabled ctx enum
+  glIsFramebuffer fb = readCtx >>= \ctx ->
+    GL.isFramebuffer ctx $ Just fb
+  glIsProgram p = readCtx >>= \ctx ->
+    GL.isProgram ctx $ Just p
+  glIsRenderbuffer rb = readCtx >>= \ctx ->
+    GL.isRenderbuffer ctx $ Just rb
+  glIsShader sh = readCtx >>= \ctx ->
+    GL.isShader ctx $ Just sh
+  glIsTexture tx = readCtx >>= \ctx ->
+    GL.isTexture ctx $ Just tx
+  glLineWidth float = readCtx >>= \ctx ->
+    GL.lineWidth ctx float
+  glLinkProgram p = readCtx >>= \ctx ->
+    GL.linkProgram ctx $ Just p
+  glPixelStorei enum int = readCtx >>= \ctx ->
+    GL.pixelStorei ctx enum int
+  glPolygonOffset a b = readCtx >>= \ctx ->
+    GL.polygonOffset ctx a b
+  glReleaseShaderCompiler = readCtx >>= GL.releaseShaderCompiler
+  glRenderbufferStorage a b c d = readCtx >>= \ctx ->
+    GL.renderbufferStorage ctx a b c d
+  glSampleCoverage clampf bool = readCtx >>= \ctx ->
+    GL.sampleCoverage ctx clampf bool
+  glScissor a b c d = readCtx >>= \ctx ->
+    GL.scissor ctx a b c d
+  glShaderSource shader src = readCtx >>= \ctx ->
+    GL.shaderSource ctx (Just shader) src
+  glStencilFunc a b c = readCtx >>= \ctx ->
+    GL.stencilFunc ctx a b c
+  glStencilFuncSeparate a b c d = readCtx >>= \ctx ->
+    GL.stencilFuncSeparate ctx a b c d
+  glStencilMask uint = readCtx >>= \ctx ->
+    GL.stencilMask ctx uint
+  glStencilMaskSeparate a b = readCtx >>= \ctx ->
+    GL.stencilMaskSeparate ctx a b
+  glStencilOp a b c = readCtx >>= \ctx ->
+    GL.stencilOp ctx a b c
+  glStencilOpSeparate a b c d = readCtx >>= \ctx ->
+    GL.stencilOpSeparate ctx a b c d
+  glTexParameterf a b f = readCtx >>= \ctx ->
+    GL.texParameterf ctx a b f
+  glTexParameteri a b i = readCtx >>= \ctx ->
+    GL.texParameteri ctx a b i
+  glTexImage2D target level internalFormat format typ dat = readCtx >>= \ctx ->
+    GL.texImage2D ctx target level (fromIntegral internalFormat) format typ $ Just dat
+  glTexSubImage2D target level x y format typ dat = readCtx >>= \ctx -> do
+    GL.texSubImage2D ctx target level x y format typ $ Just dat
+  glUniform1f loc a = readCtx >>= \ctx ->
+    GL.uniform1f ctx (Just loc) a
+  glUniform1fv loc vec = readCtx >>= \ctx ->
+    GL.uniform1fv ctx (Just loc) vec
+  glUniform1i loc i = readCtx >>= \ctx ->
+    GL.uniform1i ctx (Just loc) i
+  glUniform1iv loc vec = readCtx >>= \ctx ->
+    GL.uniform1iv ctx (Just loc) vec
+  glUniform2f loc a b = readCtx >>= \ctx ->
+    GL.uniform2f ctx (Just loc) a b
+  glUniform2fv loc vec = readCtx >>= \ctx ->
+    GL.uniform2fv ctx (Just loc) vec
+  glUniform2i loc a b = readCtx >>= \ctx ->
+    GL.uniform2i ctx (Just loc) a b
+  glUniform2iv loc vec = readCtx >>= \ctx ->
+    GL.uniform2iv ctx (Just loc) vec
+  glUniform3f loc a b c = readCtx >>= \ctx ->
+    GL.uniform3f ctx (Just loc) a b c
+  glUniform3fv loc vec = readCtx >>= \ctx ->
+    GL.uniform3fv ctx (Just loc) vec
+  glUniform3i loc a b c = readCtx >>= \ctx ->
+    GL.uniform3i ctx (Just loc) a b c
+  glUniform3iv loc vec = readCtx >>= \ctx ->
+    GL.uniform3iv ctx (Just loc) vec
+  glUniform4f loc a b c d = readCtx >>= \ctx ->
+    GL.uniform4f ctx (Just loc) a b c d
+  glUniform4fv loc vec = readCtx >>= \ctx ->
+    GL.uniform4fv ctx (Just loc) vec
+  glUniform4i loc a b c d = readCtx >>= \ctx ->
+    GL.uniform4i ctx (Just loc) a b c d
+  glUniform4iv loc vec = readCtx >>= \ctx ->
+    GL.uniform4iv ctx (Just loc) vec
+  glUniformMatrix2fv loc trans vec = readCtx >>= \ctx ->
+    GL.uniformMatrix2fv ctx (Just loc) trans vec
+  glUniformMatrix3fv loc trans vec = readCtx >>= \ctx ->
+    GL.uniformMatrix3fv ctx (Just loc) trans vec
+  glUniformMatrix4fv loc trans vec = readCtx >>= \ctx ->
+    GL.uniformMatrix4fv ctx (Just loc) trans vec
+  glUseProgram program = readCtx >>= \ctx ->
+    GL.useProgram ctx (Just program)
+  glValidateProgram program = readCtx >>= \ctx ->
+    GL.validateProgram ctx $ Just program
+  glVertexAttrib1f loc a = readCtx >>= \ctx ->
+    GL.vertexAttrib1f ctx loc a
+  glVertexAttrib1fv loc vec = readCtx >>= \ctx ->
+    GL.vertexAttrib1fv ctx loc vec
+  glVertexAttrib2f loc a b = readCtx >>= \ctx ->
+    GL.vertexAttrib2f ctx loc a b
+  glVertexAttrib2fv loc vec = readCtx >>= \ctx ->
+    GL.vertexAttrib2fv ctx loc vec
+  glVertexAttrib3f loc a b c = readCtx >>= \ctx ->
+    GL.vertexAttrib3f ctx loc a b c
+  glVertexAttrib3fv loc vec = readCtx >>= \ctx ->
+    GL.vertexAttrib3fv ctx loc vec
+  glVertexAttrib4f loc a b c d = readCtx >>= \ctx ->
+    GL.vertexAttrib4f ctx loc a b c d
+  glVertexAttrib4fv loc vec = readCtx >>= \ctx ->
+    GL.vertexAttrib4fv ctx loc vec
+  glVertexAttribPointer index sz typ normed stride n = readCtx >>= \ctx ->
+    GL.vertexAttribPointer ctx index sz typ normed stride n
+  glViewport x y width height = readCtx >>= \ctx ->
+    GL.viewport ctx x y width height
 
   gl_DEPTH_BUFFER_BIT  = GL.DEPTH_BUFFER_BIT
   gl_STENCIL_BUFFER_BIT  = GL.STENCIL_BUFFER_BIT

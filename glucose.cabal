@@ -16,7 +16,7 @@ cabal-version:       >=1.10
 flag webgl
   description: Disable the default OpenGL implementation in favor of the WebGL
                implementation.
-  default: True
+  default: False
 
 flag ghcjs
   description: Build for ghcjs.
@@ -32,7 +32,9 @@ library
     build-depends:     ghcjs-base
 
  if flag(webgl)
-   build-depends:     ghcjs-dom
+   build-depends:     ghcjs-dom >= 0.8
+                    , jsaddle
+                    , jsaddle-dom >= 0.8
    exposed-modules:   Graphics.Glucose.WebGL
  else
    build-depends:     gl

@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes   #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Graphics.Glucose.OpenGL where
@@ -30,20 +31,31 @@ deleteWith :: (MonadIO m, Storable b, Num a) => (a -> Ptr b -> IO ()) -> b -> m 
 deleteWith f b = liftIO $ withArray [b] $ f 1
 
 getActiveThing
-  :: (MonadIO m, Storable t3, Storable t2, Storable t1, Num t)
-  => (t5 -> t4 -> t -> Ptr t3 -> Ptr t2 -> Ptr t1 -> CString -> IO a)
-  -> t5 -> t4 -> m (t3, t2, t1, String)
+  :: MonadIO m
+  => (GL.GLuint
+      -> GL.GLuint
+      -> GL.GLsizei
+      -> Ptr GL.GLsizei
+      -> Ptr GL.GLint
+      -> Ptr GL.GLenum
+      -> Ptr GL.GLchar
+      -> IO ())
+  -> GL.GLuint
+  -> GL.GLuint
+  -> m (ActiveInfo OpenGL)
 getActiveThing f program index = liftIO $
   allocaArray 1 $ \lenPtr ->
     allocaArray 1 $ \szPtr ->
       allocaArray 1 $ \typPtr ->
         withCString (replicate 64 ' ') $ \cStr -> do
-          _ <- f program index 64 lenPtr szPtr typPtr cStr
-          [len] <- peekArray 1 lenPtr
+          f program index 64 lenPtr szPtr typPtr cStr
           [sz]  <- peekArray 1 szPtr
           [typ] <- peekArray 1 typPtr
           str   <- peekCString cStr
-          return (len, sz, typ, str)
+          return ActiveInfo { aiSize = fromIntegral sz
+                            , aiType = fromIntegral typ
+                            , aiName = str
+                            }
 
 instance GLES OpenGL where
   type C OpenGL = MonadIO
@@ -357,12 +369,20 @@ instance GLES OpenGL where
         [glfloat] <- peekArray 1 ptr
         return $ GLESGLfloat glfloat
     | otherwise = return GLESNone
-  glGetUniformfv program location = GL.glGetUniformfv program location . snd
-  glGetUniformiv program location = GL.glGetUniformiv program location . snd
+  glGetUniformfv program location array = do
+    GL.glGetUniformfv program location $ snd array
+    return $ Just array
+  glGetUniformiv program location array = do
+    GL.glGetUniformiv program location $ snd array
+    return $ Just array
   glGetUniformLocation program str = liftIO $
     withCString str $ GL.glGetUniformLocation program
-  glGetVertexAttribfv index pname = GL.glGetVertexAttribfv index pname . snd
-  glGetVertexAttribiv index pname = GL.glGetVertexAttribiv index pname . snd
+  glGetVertexAttribfv index pname array = do
+    GL.glGetVertexAttribfv index pname $ snd array
+    return $ Just array
+  glGetVertexAttribiv index pname array = do
+    GL.glGetVertexAttribiv index pname $ snd array
+    return $ Just array
   glHint = GL.glHint
   glIsBuffer = GL.glIsBuffer
   glIsContextLost = return 0

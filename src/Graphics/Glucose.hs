@@ -11,6 +11,11 @@ data ShaderPrecisionFormat a = ShaderPrecisionFormat { spfRangeMin  :: GLint a
                                                      , spfPrecision :: GLint a
                                                      }
 
+data ActiveInfo a = ActiveInfo { aiSize :: GLint a
+                               , aiType :: GLint a
+                               , aiName :: String
+                               }
+
 -- | An sum of all possible GL types, for use in functions where the return type
 -- would usually be cast.
 data AnyGLESType a where
@@ -91,25 +96,154 @@ class GLES a where
   glClearStencil :: (C a) m => GLint a -> m ()
   glColorMask :: (C a) m => GLboolean a -> GLboolean a -> GLboolean a -> GLboolean a -> m ()
   glCompileShader :: (C a) m => Shader a -> m ()
-  glCopyTexImage2D :: (C a) m => GLenum a -> GLint a -> GLenum a -> GLint a -> GLint a -> GLsizei a -> GLsizei a -> GLint a -> m ()
-  glCopyTexSubImage2D :: (C a) m => GLenum a -> GLint a -> GLint a -> GLint a -> GLint a -> GLint a -> GLsizei a -> GLsizei a -> m ()
+  -- | Copies pixels from the current @Framebuffer a@ into a 2D texture image.
+  glCopyTexImage2D
+    :: (C a) m
+    => GLenum a
+    -- ^ target
+    -- A GLenum specifying the binding point (target) of the active texture. Possible values:
+    --   * gl_TEXTURE_2D: A two-dimensional texture.
+    --   * gl_TEXTURE_CUBE_MAP_POSITIVE_X: Positive X face for a cube-mapped texture.
+    --   * gl_TEXTURE_CUBE_MAP_NEGATIVE_X: Negative X face for a cube-mapped texture.
+    --   * gl_TEXTURE_CUBE_MAP_POSITIVE_Y: Positive Y face for a cube-mapped texture.
+    --   * gl_TEXTURE_CUBE_MAP_NEGATIVE_Y: Negative Y face for a cube-mapped texture.
+    --   * gl_TEXTURE_CUBE_MAP_POSITIVE_Z: Positive Z face for a cube-mapped texture.
+    --   * gl_TEXTURE_CUBE_MAP_NEGATIVE_Z: Negative Z face for a cube-mapped texture.
+    -> GLint a
+    -- ^ level
+    -- A GLint specifying the level of detail. Level 0 is the base image level
+    -- and level n is the nth mipmap reduction level.
+    -> GLenum a
+    -- ^ internal format
+    -- A GLint specifying the color components in the texture. Possible values:
+    --   * gl_ALPHA: Discards the red, green and blue components and reads the alpha component.
+    --   * gl_RGB: Discards the alpha components and reads the red, green and blue components.
+    --   * gl_RGBA: Red, green, blue and alpha components are read from the color buffer.
+    --   * gl_LUMINANCE: Each color component is a luminance component, alpha is 1.0.
+    --   * gl_LUMINANCE_ALPHA: Each component is a luminance/alpha component.
+    -> GLint a
+    -- ^ A GLint specifying the x coordinate of the lower left corner where to
+    -- start copying.
+    -> GLint a
+    -- ^ A GLint specifying the y coordinate of the lower left corner where to
+    -- start copying.
+    -> GLsizei a
+    -- ^ A GLsizei specifying the width of the texture.
+    -> GLsizei a
+    -- ^ A GLsizei specifying the height of the texture.
+    -> GLint a
+    -- ^ This parameter is ignored, but the WebGL docs say this:
+    -- A GLint specifying the width of the border. Must be 0.
+    -> m ()
+  glCopyTexSubImage2D
+    :: (C a) m
+    => GLenum a
+    -- ^ target
+    -- A GLenum specifying the binding point (target) of the active texture. Possible values:
+    --   * gl_TEXTURE_2D: A two-dimensional texture.
+    --   * gl_TEXTURE_CUBE_MAP_POSITIVE_X: Positive X face for a cube-mapped texture.
+    --   * gl_TEXTURE_CUBE_MAP_NEGATIVE_X: Negative X face for a cube-mapped texture.
+    --   * gl_TEXTURE_CUBE_MAP_POSITIVE_Y: Positive Y face for a cube-mapped texture.
+    --   * gl_TEXTURE_CUBE_MAP_NEGATIVE_Y: Negative Y face for a cube-mapped texture.
+    --   * gl_TEXTURE_CUBE_MAP_POSITIVE_Z: Positive Z face for a cube-mapped texture.
+    --   * gl_TEXTURE_CUBE_MAP_NEGATIVE_Z: Negative Z face for a cube-mapped texture.
+    -> GLint a
+    -- ^ level
+    -- A GLint specifying the level of detail. Level 0 is the base image level
+    -- and level n is the nth mipmap reduction level.
+    -> GLint a
+    -- ^ xoffset
+    -- A GLint specifying the horizontal offset within the texture image.
+    -> GLint a
+    -- ^ yoffset
+    -- A GLint specifying the vertical offset within the texture image.
+    -> GLint a
+    -- ^ A GLint specifying the x coordinate of the lower left corner where to
+    -- start copying.
+    -> GLint a
+    -- ^ A GLint specifying the y coordinate of the lower left corner where to
+    -- start copying.
+    -> GLsizei a
+    -- ^ A GLsizei specifying the width of the texture.
+    -> GLsizei a
+    -- ^ A GLsizei specifying the height of the texture.
+    -> m ()
   glCreateBuffer :: (C a) m =>  m (Buffer a)
   glCreateFramebuffer :: (C a) m =>  m (Framebuffer a)
   glCreateProgram :: (C a) m =>  m (Program a)
   glCreateRenderbuffer :: (C a) m =>  m (Renderbuffer a)
   glCreateShader :: (C a) m => GLenum a -> m (Shader a)
   glCreateTexture :: (C a) m =>  m (Texture a)
-  glCullFace :: (C a) m => GLenum a -> m ()
+  glCullFace
+    :: (C a) m
+    => GLenum a
+    -- ^ mode
+    -- A GLenum specifying whether front- or back-facing polygons are candidates
+    -- for culling. The default value is gl.BACK. Possible values are:
+    --   * gl_FRONT
+    --   * gl_BACK
+    --   * gl_FRONT_AND_BACK
+    -> m ()
+
   glDeleteBuffer :: (C a) m => Buffer a -> m ()
   glDeleteFramebuffer :: (C a) m => Framebuffer a -> m ()
   glDeleteProgram :: (C a) m => Program a -> m ()
   glDeleteRenderbuffer :: (C a) m => Renderbuffer a -> m ()
   glDeleteShader :: (C a) m => Shader a -> m ()
   glDeleteTexture :: (C a) m => Texture a -> m ()
-  glDepthFunc :: (C a) m => GLenum a -> m ()
-  glDepthMask :: (C a) m => GLboolean a -> m ()
-  glDepthRange :: (C a) m => GLclampf a -> GLclampf a -> m ()
-  glDetachShader :: (C a) m => Program a -> Shader a -> m ()
+
+  -- | Specifies a function that compares incoming pixel depth to the current
+  -- depth buffer value
+  glDepthFunc
+    :: (C a) m
+    => GLenum a
+    -- ^ func
+    -- A GLenum specifying the depth comparison function, which sets the
+    -- conditions under which the pixel will be drawn. The default value is
+    -- gl_LESS. Possible values are:
+    --   * gl_NEVER (never pass)
+    --   * gl_LESS (pass if the incoming value is less than the depth buffer value)
+    --   * gl_EQUAL (pass if the incoming value equals the the depth buffer value)
+    --   * gl_LEQUAL (pass if the incoming value is less than or equal to the depth buffer value)
+    --   * gl_GREATER (pass if the incoming value is greater than the depth buffer value)
+    --   * gl_NOTEQUAL (pass if the incoming value is not equal to the depth buffer value)
+    --   * gl_GEQUAL (pass if the incoming value is greater than or equal to the depth buffer value)
+    --   * gl_ALWAYS (always pass)
+    -> m ()
+
+  -- | Sets whether writing into the depth buffer is enabled or disabled.
+  glDepthMask
+    :: (C a) m
+    => GLboolean a
+    -- ^ flag
+    -- A GLboolean specifying whether or not writing into the depth buffer is
+    -- enabled. Default value: true, meaning that writing is enabled.
+    -> m ()
+
+  -- | Specifies the depth range mapping from normalized device coordinates to
+  -- window or viewport coordinates.
+  glDepthRange
+    :: (C a) m
+    => GLclampf a
+    -- ^ zNear
+    -- A @GLclampf a@ specifying the mapping of the near clipping plane to window
+    -- or viewport coordinates. Clamped to the range 0 to 1 and must be less
+    -- than or equal to zFar. The default value is 0.
+    -> GLclampf a
+    -- ^ zFar
+    -- A @GLclampf a@ specifying the mapping of the far clipping plane to window or
+    -- viewport coordinates. Clamped to the range 0 to 1. The default value is 1.
+    -> m ()
+
+  -- | Detaches a previously attached @Shader a@ from a @Program a@.
+  glDetachShader
+    :: (C a) m
+    => Program a
+    -- ^ The program to detach the shader from.
+    -> Shader a
+    -- ^ The fragment or vertex shader to detach.
+    -> m ()
+
   glDisable :: (C a) m => GLenum a -> m ()
   glDisableVertexAttribArray :: (C a) m => GLuint a -> m ()
   glDrawArrays :: (C a) m => GLenum a -> GLint a -> GLsizei a -> m ()
@@ -122,9 +256,9 @@ class GLES a where
   glFramebufferTexture2D :: (C a) m => GLenum a -> GLenum a -> GLenum a -> Texture a -> GLint a -> m ()
   glFrontFace :: (C a) m => GLenum a -> m ()
   glGenerateMipmap :: (C a) m => GLenum a -> m ()
-  glGetActiveAttrib :: (C a) m => Program a -> GLuint a -> m (GLsizei a, GLint a, GLenum a, String)
-  glGetActiveUniform :: (C a) m => Program a -> GLuint a -> m (GLsizei a, GLint a, GLenum a, String)
-  glGetAttachedShaders :: (C a) m => Program a -> m [GLuint a]
+  glGetActiveAttrib :: (C a) m => Program a -> GLuint a -> m (ActiveInfo a)
+  glGetActiveUniform :: (C a) m => Program a -> GLuint a -> m (ActiveInfo a)
+  glGetAttachedShaders :: (C a) m => Program a -> m [Shader a]
   glGetAttribLocation :: (C a) m => Program a -> String -> m (GLint a)
   glGetBufferParameter :: (C a) m => GLenum a -> GLenum a -> m (Either (GLint a) (GLenum a))
   glGetError :: (C a) m =>  m (GLenum a)
@@ -140,11 +274,11 @@ class GLES a where
   glGetShaderSource :: (C a) m => Shader a -> m String
   glGetSupportedExtensions :: (C a) m =>  m [String]
   glGetTexParameter :: (C a) m => GLenum a -> GLenum a -> m (AnyGLESType a)
-  glGetUniformfv :: (C a) m => Program a -> UniformLocation a -> FloatArray a -> m ()
-  glGetUniformiv :: (C a) m => Program a -> UniformLocation a -> IntArray a -> m ()
+  glGetUniformfv :: (C a) m => Program a -> UniformLocation a -> FloatArray a -> m (Maybe (FloatArray a))
+  glGetUniformiv :: (C a) m => Program a -> UniformLocation a -> IntArray a -> m (Maybe (IntArray a))
   glGetUniformLocation :: (C a) m => Program a -> GLstring a -> m (UniformLocation a)
-  glGetVertexAttribfv :: (C a) m => GLuint a -> GLenum a -> FloatArray a -> m ()
-  glGetVertexAttribiv :: (C a) m => GLuint a -> GLenum a -> IntArray a -> m ()
+  glGetVertexAttribfv :: (C a) m => GLuint a -> GLenum a -> FloatArray a -> m (Maybe (FloatArray a))
+  glGetVertexAttribiv :: (C a) m => GLuint a -> GLenum a -> IntArray a -> m (Maybe (IntArray a))
   glHint :: (C a) m => GLenum a -> GLenum a -> m ()
   glIsBuffer :: (C a) m => Buffer a -> m (GLboolean a)
   glIsContextLost :: (C a) m =>  m (GLboolean a)
@@ -162,7 +296,7 @@ class GLES a where
   glRenderbufferStorage :: (C a) m => GLenum a -> GLenum a -> GLsizei a -> GLsizei a -> m ()
   glSampleCoverage :: (C a) m => GLclampf a -> GLboolean a -> m ()
   glScissor :: (C a) m => GLint a -> GLint a -> GLsizei a -> GLsizei a -> m ()
-  glShaderSource :: (C a) m => () => Shader a -> String -> m ()
+  glShaderSource :: (C a) m => Shader a -> String -> m ()
   glStencilFunc :: (C a) m => GLenum a -> GLint a -> GLuint a -> m ()
   glStencilFuncSeparate :: (C a) m => GLenum a -> GLenum a -> GLint a -> GLuint a -> m ()
   glStencilMask :: (C a) m => GLuint a -> m ()
