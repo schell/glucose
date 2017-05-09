@@ -2,10 +2,12 @@
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE ExplicitForAll        #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Graphics.Glucose where
 
@@ -52,36 +54,36 @@ data AnyGLESType a where
   GLESExtension :: Extension a -> AnyGLESType a
   GLESNone :: AnyGLESType a
 
-class GLES a where
+class (Eq (GLboolean a), Num (GLenum a)) => GLES a where
   type C a :: (* -> *) -> Constraint
 
-  type Program         a
-  type Shader          a
-  type Texture         a
-  type UniformLocation a
+  data Program         a
+  data Shader          a
+  data Texture         a
+  data UniformLocation a
 
-  type GLclampf        a
-  type GLfloat         a
-  type GLenum          a
-  type GLuint          a
-  type GLint           a
-  type GLintptr        a
-  type GLbitfield      a
-  type GLboolean       a
-  type GLsizei         a
-  type GLstring        a
-  type GLptr           a
+  data GLclampf        a
+  data GLfloat         a
+  data GLenum          a
+  data GLuint          a
+  data GLint           a
+  data GLintptr        a
+  data GLbitfield      a
+  data GLboolean       a
+  data GLsizei         a
+  data GLstring        a
+  data GLptr           a
 
-  type BufferableData  a
-  type ImageData       a
+  data BufferableData  a
+  data ImageData       a
 
-  type Buffer          a
-  type Framebuffer     a
-  type Renderbuffer    a
-  type FloatArray      a
-  type IntArray        a
-  type UintArray       a
-  type Extension       a
+  data Buffer          a
+  data Framebuffer     a
+  data Renderbuffer    a
+  data FloatArray      a
+  data IntArray        a
+  data UintArray       a
+  data Extension       a
 
   -- | A true value.
   true  :: GLboolean a
@@ -668,12 +670,16 @@ class GLES a where
   --gl_UNPACK_COLORSPACE_CONVERSION_WEBGL :: GLenum a
   --gl_BROWSER_DEFAULT_WEBGL :: GLenum a
 
-compileVertexShader :: (GLES a, C a m) => m (Maybe (Shader a))
-compileVertexShader = do
-  v <- glCreateShader gl_VERTEX_SHADER
-  glShaderSource v "fake shader source"
-  glCompileShader v
-  glGetShaderParameter v gl_COMPILE_STATUS >>= \case
+compileShader
+  :: forall a m. (GLES a, C a m, Monad m)
+  => GLenum a
+  -> String
+  -> m (Maybe (Shader a))
+compileShader shtype src = do
+  s <- glCreateShader shtype
+  glShaderSource s src
+  glCompileShader s
+  glGetShaderParameter s gl_COMPILE_STATUS >>= \case
     Left status
-      | status == true -> return $ Just v
+      | status == true -> return $ Just s
     _ -> return Nothing

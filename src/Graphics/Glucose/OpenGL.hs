@@ -63,33 +63,33 @@ getActiveThing f program index = liftIO $
 instance GLES OpenGL where
   type C OpenGL = MonadIO
 
-  data Program         OpenGL = GL.GLuint
-  type Shader          OpenGL = GL.GLuint
-  type Texture         OpenGL = GL.GLuint
-  type UniformLocation OpenGL = GL.GLint
+  data Program         OpenGL = OpenGLProgram GL.GLuint
+  data Shader          OpenGL = OpenGLShader GL.GLuint
+  data Texture         OpenGL = OpenGLTexture GL.GLuint
+  data UniformLocation OpenGL = OpenGLULoc GL.GLint
 
-  type GLclampf        OpenGL = GL.GLfloat
-  type GLfloat         OpenGL = GL.GLfloat
-  type GLenum          OpenGL = GL.GLenum
-  type GLuint          OpenGL = GL.GLuint
-  type GLint           OpenGL = GL.GLint
-  type GLintptr        OpenGL = GL.GLintptr
-  type GLbitfield      OpenGL = GL.GLbitfield
-  type GLboolean       OpenGL = GL.GLboolean
-  type GLsizei         OpenGL = GL.GLsizei
-  type GLstring        OpenGL = String
-  type GLptr           OpenGL = Ptr ()
+  data GLclampf        OpenGL = GL.GLfloat
+  data GLfloat         OpenGL = GL.GLfloat
+  data GLenum          OpenGL = GL.GLenum
+  data GLuint          OpenGL = GL.GLuint
+  data GLint           OpenGL = GL.GLint
+  data GLintptr        OpenGL = GL.GLintptr
+  data GLbitfield      OpenGL = GL.GLbitfield
+  data GLboolean       OpenGL = GL.GLboolean
+  data GLsizei         OpenGL = GL.GLsizei
+  data GLstring        OpenGL = String
+  data GLptr           OpenGL = Ptr ()
 
-  type BufferableData  OpenGL = (GL.GLsizeiptr, Ptr ())
-  type ImageData       OpenGL = ((Int, Int), Ptr ())
+  data BufferableData  OpenGL = (GL.GLsizeiptr, Ptr ())
+  data ImageData       OpenGL = ((Int, Int), Ptr ())
 
-  type Buffer          OpenGL = GL.GLuint
-  type Framebuffer     OpenGL = GL.GLuint
-  type Renderbuffer    OpenGL = GL.GLuint
-  type FloatArray      OpenGL = (GL.GLsizei, Ptr GL.GLfloat)
-  type IntArray        OpenGL = (GL.GLsizei, Ptr GL.GLint)
-  type UintArray       OpenGL = (GL.GLsizei, Ptr GL.GLuint)
-  type Extension       OpenGL = ()
+  data Buffer          OpenGL = GL.GLuint
+  data Framebuffer     OpenGL = GL.GLuint
+  data Renderbuffer    OpenGL = GL.GLuint
+  data FloatArray      OpenGL = (GL.GLsizei, Ptr GL.GLfloat)
+  data IntArray        OpenGL = (GL.GLsizei, Ptr GL.GLint)
+  data UintArray       OpenGL = (GL.GLsizei, Ptr GL.GLuint)
+  data Extension       OpenGL = ()
 
   true = GL.GL_TRUE
   false = GL.GL_FALSE
