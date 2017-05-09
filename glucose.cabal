@@ -19,26 +19,37 @@ flag webgl
   default: False
 
 flag ghcjs
-  description: Build for ghcjs.
+  description: Build for ghcjs, which implies WebGL.
   default: False
 
 library
   hs-source-dirs:      src
-  build-depends:       base >= 4.7 && < 5
-                     , mtl
-  exposed-modules:     Graphics.Glucose
 
- if flag(ghcjs)
-    build-depends:     ghcjs-base
-
- if flag(webgl)
-   build-depends:     ghcjs-dom >= 0.8
-                    , jsaddle
-                    , jsaddle-dom >= 0.8
-   exposed-modules:   Graphics.Glucose.WebGL
- else
-   build-depends:     gl
-   exposed-modules:   Graphics.Glucose.OpenGL
+  if flag(ghcjs)
+    build-depends:      base >= 4.7 && < 5
+                      , mtl
+                      , ghcjs-base
+                      , ghcjs-dom >= 0.8
+                      , jsaddle
+                      , jsaddle-dom >= 0.8
+    exposed-modules:    Graphics.Glucose
+                      , Graphics.Glucose.GL
+                      , Graphics.Glucose.WebGL
+  else
+    build-depends:      base >= 4.7 && < 5
+                      , mtl
+    if flag(webgl)
+      build-depends:      ghcjs-dom >= 0.8
+                        , jsaddle
+                        , jsaddle-dom >= 0.8
+      exposed-modules:    Graphics.Glucose
+                        , Graphics.Glucose.GL
+                        , Graphics.Glucose.WebGL
+    else
+      build-depends:      gl
+      exposed-modules:    Graphics.Glucose
+                        , Graphics.Glucose.GL
+                        , Graphics.Glucose.OpenGL
 
   default-language:    Haskell2010
 

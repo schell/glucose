@@ -1,28 +1,53 @@
 {-# LANGUAGE AllowAmbiguousTypes   #-}
 {-# LANGUAGE CPP                   #-}
+{-# LANGUAGE JavaScriptFFI         #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Graphics.Glucose.WebGL where
 
-import           Data.Maybe                           (fromJust, fromMaybe)
-import qualified GHCJS.Buffer                         as B
-import           GHCJS.Marshal                        (fromJSValUnchecked)
-import           JavaScript.TypedArray                as TA
-import           JavaScript.TypedArray.Internal.Types as TA
+import           Control.Monad.IO.Class            (MonadIO, liftIO)
+import           Data.Foldable                     (toList)
+import           Data.Maybe                        (fromJust, fromMaybe)
+import qualified GHCJS.Buffer                      as B
+import           GHCJS.Marshal                     (fromJSValUnchecked)
 import           JSDOM.ImageData
-import           JSDOM.Types                          as GL
+import           JSDOM.Types                       as GL
 import           JSDOM.WebGLActiveInfo
-import           JSDOM.WebGLRenderingContextBase      as GL
+import           JSDOM.WebGLRenderingContextBase   as GL
 import           JSDOM.WebGLShaderPrecisionFormat
-import           Language.Javascript.JSaddle.Types    (MonadJSM, liftJSM)
+import           Language.Javascript.JSaddle.Types (MonadJSM, liftJSM)
 
 import           Graphics.Glucose
 
 data WebGL = WebGL
 
--- #ifdef ghcjs_HOST_OS
+#ifdef ghcjs_HOST_OS
+foreign import javascript unsafe "new Float32Array($1)"
+  allocFloat32ArrayJS :: JSVal -> IO JSVal
+
+allocFloat32Array :: (MonadIO m, ToJSVal a, Real a) => [a] -> m Float32Array
+allocFloat32Array xs = (Float32Array <$>) . liftIO $ do
+  jsval <- toJSValListOf (map realToFrac xs :: [Float])
+  allocFloat32ArrayJS jsval
+#else
+allocFloat32Array :: (MonadIO m, ToJSVal a, Real a) => [a] -> m Float32Array
+allocFloat32Array = error "only available on ghcjs"
+#endif
+
+#ifdef ghcjs_HOST_OS
+foreign import javascript unsafe "new Int32Array($1)"
+  allocInt32ArrayJS :: JSVal -> IO JSVal
+
+allocInt32Array :: (MonadIO m, ToJSVal a, Integral a) => [a] -> m Int32Array
+allocInt32Array xs = (Int32Array <$>) . liftIO $ do
+  jsval <- toJSValListOf (map fromIntegral xs :: [Int])
+  allocInt32ArrayJS jsval
+#else
+allocInt32Array :: (MonadIO m, ToJSVal a, Num a) => [a] -> m Int32Array
+allocInt32Array = error "only available on ghcjs"
+#endif
 
 class MonadJSM m => WebGLConstraint m where
   readCtx :: m WebGLRenderingContextBase
@@ -57,6 +82,12 @@ instance GLES WebGL where
   type IntArray        WebGL = GL.Int32Array
   type UintArray       WebGL = GL.Uint32Array
   type Extension       WebGL = JSVal
+
+  true  = True
+  false = False
+
+  allocFloatArray = allocFloat32Array . toList
+  allocIntArray   = allocInt32Array . toList
 
   glActiveTexture texture = readCtx >>= \ctx ->
     GL.activeTexture ctx texture
@@ -372,10 +403,7 @@ instance GLES WebGL where
       jsval <- GL.getVertexAttrib ctx index pname
       liftJSM $ fromJSVal jsval >>= \case
         Nothing    -> return Nothing
-        Just glint ->  do
-          array :: IOInt32Array <- create 1
-          setIndex 0 glint array
-          undefined array
+        Just glint -> Just <$> allocInt32Array [glint :: GL.GLint]
     | otherwise = return Nothing
   glHint a b = readCtx >>= \ctx ->
     GL.hint ctx a b

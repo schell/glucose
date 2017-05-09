@@ -1,10 +1,18 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE ConstraintKinds     #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE AllowAmbiguousTypes   #-}
+{-# LANGUAGE CPP                   #-}
+{-# LANGUAGE ConstraintKinds       #-}
+{-# LANGUAGE ExplicitForAll        #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeFamilies          #-}
 module Graphics.Glucose where
 
-import GHC.Exts (Constraint)
+import           GHC.Exts    (Constraint)
+#ifdef ghcjs_HOST_OS
+import           JSDOM.Types (ToJSVal)
+#endif
 
 data ShaderPrecisionFormat a = ShaderPrecisionFormat { spfRangeMin  :: GLint a
                                                      , spfRangeMax  :: GLint a
@@ -74,6 +82,23 @@ class GLES a where
   type IntArray        a
   type UintArray       a
   type Extension       a
+
+  -- | A true value.
+  true  :: GLboolean a
+  -- | A false value.
+  false :: GLboolean a
+
+#ifdef ghcjs_HOST_OS
+  -- | Alloc and fill a float array.
+  allocFloatArray :: (Foldable t, Real f, ToJSVal f, (C a) m)     => t f -> m (FloatArray a)
+  -- | Alloc and fill an int array.
+  allocIntArray   :: (Foldable t, Integral i, ToJSVal i, (C a) m) => t i -> m (IntArray a)
+#else
+  -- | Alloc and fill a float array.
+  allocFloatArray :: (Foldable t, Real f, (C a) m)     => t f -> m (FloatArray a)
+  -- | Alloc and fill an int array.
+  allocIntArray   :: (Foldable t, Integral i, (C a) m) => t i -> m (IntArray a)
+#endif
 
   glActiveTexture :: (C a) m => GLenum a -> m ()
   glAttachShader :: (C a) m => Program a -> Shader a -> m ()
@@ -642,3 +667,13 @@ class GLES a where
   --gl_CONTEXT_LOST_WEBGL :: GLenum a
   --gl_UNPACK_COLORSPACE_CONVERSION_WEBGL :: GLenum a
   --gl_BROWSER_DEFAULT_WEBGL :: GLenum a
+
+compileVertexShader :: (GLES a, C a m) => m (Maybe (Shader a))
+compileVertexShader = do
+  v <- glCreateShader gl_VERTEX_SHADER
+  glShaderSource v "fake shader source"
+  glCompileShader v
+  glGetShaderParameter v gl_COMPILE_STATUS >>= \case
+    Left status
+      | status == true -> return $ Just v
+    _ -> return Nothing

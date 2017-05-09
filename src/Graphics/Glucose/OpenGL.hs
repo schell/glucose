@@ -1,12 +1,15 @@
 {-# LANGUAGE AllowAmbiguousTypes   #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Graphics.Glucose.OpenGL where
 
 import           Control.Monad.IO.Class      (MonadIO, liftIO)
+import           Data.Foldable               (toList)
 import           Foreign.C.String
-import           Foreign.Marshal.Array       (allocaArray, peekArray, withArray)
+import           Foreign.Marshal.Array       (allocaArray, newArray, peekArray,
+                                              withArray)
 import           Foreign.Marshal.Utils       (with)
 import           Foreign.Ptr                 (Ptr, intPtrToPtr, nullPtr)
 import           Foreign.Storable            (Storable)
@@ -60,7 +63,7 @@ getActiveThing f program index = liftIO $
 instance GLES OpenGL where
   type C OpenGL = MonadIO
 
-  type Program         OpenGL = GL.GLuint
+  data Program         OpenGL = GL.GLuint
   type Shader          OpenGL = GL.GLuint
   type Texture         OpenGL = GL.GLuint
   type UniformLocation OpenGL = GL.GLint
@@ -87,6 +90,19 @@ instance GLES OpenGL where
   type IntArray        OpenGL = (GL.GLsizei, Ptr GL.GLint)
   type UintArray       OpenGL = (GL.GLsizei, Ptr GL.GLuint)
   type Extension       OpenGL = ()
+
+  true = GL.GL_TRUE
+  false = GL.GL_FALSE
+
+  allocFloatArray xs = liftIO $ do
+    let xsList = map realToFrac $ toList xs
+        size   = fromIntegral $ length xs
+    (size,) <$> newArray xsList
+
+  allocIntArray xs = liftIO $ do
+    let xsList = map fromIntegral $ toList xs
+        size   = fromIntegral $ length xs
+    (size,) <$> newArray xsList
 
   glActiveTexture = GL.glActiveTexture
   glAttachShader  = GL.glAttachShader
