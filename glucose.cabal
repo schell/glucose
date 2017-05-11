@@ -16,7 +16,7 @@ cabal-version:       >=1.10
 flag webgl
   description: Disable the default OpenGL implementation in favor of the WebGL
                implementation.
-  default: True
+  default: False
 
 flag ghcjs
   description: Build for ghcjs, which implies WebGL.
