@@ -16,7 +16,7 @@ cabal-version:       >=1.10
 flag webgl
   description: Disable the default OpenGL implementation in favor of the WebGL
                implementation.
-  default: False
+  default: True
 
 flag ghcjs
   description: Build for ghcjs, which implies WebGL.
@@ -27,14 +27,14 @@ library
 
   if flag(ghcjs)
     build-depends:      base >= 4.7 && < 5
-                      , mtl
                       , ghcjs-base
                       , ghcjs-dom >= 0.8
                       , jsaddle
                       , jsaddle-dom >= 0.8
+                      , mtl
     exposed-modules:    Graphics.Glucose
-                      , Graphics.Glucose.GL
                       , Graphics.Glucose.WebGL
+                      , Graphics.Glucose.Utils
   else
     build-depends:      base >= 4.7 && < 5
                       , mtl
@@ -43,13 +43,13 @@ library
                         , jsaddle
                         , jsaddle-dom >= 0.8
       exposed-modules:    Graphics.Glucose
-                        , Graphics.Glucose.GL
                         , Graphics.Glucose.WebGL
+                        , Graphics.Glucose.Utils
     else
       build-depends:      gl
       exposed-modules:    Graphics.Glucose
-                        , Graphics.Glucose.GL
                         , Graphics.Glucose.OpenGL
+                        , Graphics.Glucose.Utils
 
   default-language:    Haskell2010
 
