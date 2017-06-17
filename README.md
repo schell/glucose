@@ -69,4 +69,5 @@ That's it!
 
   - [ ] w/ webgl  2   implementation
 
-- [ ] add `TypedArray` instances to `jsaddle` to make marshalling easier
+- [ ] add `TypedArray` instances to `jsaddle` to make marshalling easier, or
+      convert all array types to @Vector (f a)@.
