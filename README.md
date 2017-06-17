@@ -61,6 +61,12 @@ That's it!
 
 ## my list of things that are needed
 
-  [ ] add VAO extensions to the main GLES type
+  [x] add VAO extensions to the main GLES type
+
+    [x] w/ opengl 3   implementation
+
+    [ ] w/ webgl  ext implementation
+
+    [ ] w/ webgl  2   implementation
 
   [ ] add `TypedArray` instances to `jsaddle` to make marshalling easier
