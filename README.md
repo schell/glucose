@@ -63,10 +63,10 @@ That's it!
 
   [x] add VAO extensions to the main GLES type
 
-    [x] w/ opengl 3   implementation
+  - [x] w/ opengl 3   implementation
 
-    [ ] w/ webgl  ext implementation
+  - [ ] w/ webgl  ext implementation
 
-    [ ] w/ webgl  2   implementation
+  - [ ] w/ webgl  2   implementation
 
   [ ] add `TypedArray` instances to `jsaddle` to make marshalling easier
