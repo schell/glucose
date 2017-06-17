@@ -1,6 +1,7 @@
-{-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE RankNTypes      #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase       #-}
+{-# LANGUAGE RankNTypes       #-}
+{-# LANGUAGE RecordWildCards  #-}
 module Graphics.Glucose.Utils where
 
 import           Control.Monad    (forM_)

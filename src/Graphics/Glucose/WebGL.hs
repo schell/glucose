@@ -1,19 +1,27 @@
 {-# LANGUAGE AllowAmbiguousTypes   #-}
 {-# LANGUAGE CPP                   #-}
+{-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE JavaScriptFFI         #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Graphics.Glucose.WebGL where
 
 import           Control.Monad.IO.Class            (MonadIO, liftIO)
 import           Data.Foldable                     (toList)
 import           Data.Maybe                        (fromJust, fromMaybe)
+import           Data.Vector.Storable              (Storable, Vector)
+import qualified Data.Vector.Storable              as V
+import           Data.Word                         (Word32)
+import           Foreign.Ptr
 import qualified GHCJS.Buffer                      as B
-import           GHCJS.Marshal                     (fromJSValUnchecked)
+import           GHCJS.Marshal
+import           GHCJS.Types                       (JSVal)
+--import           JavaScript.TypedArray             as TA
 import           JSDOM.ImageData
 import           JSDOM.Types                       as GL
 import           JSDOM.WebGLActiveInfo
@@ -24,30 +32,72 @@ import           Language.Javascript.JSaddle.Types (MonadJSM, liftJSM)
 import           Graphics.Glucose
 
 #ifdef ghcjs_HOST_OS
-foreign import javascript unsafe "new Float32Array($1)"
-  allocFloat32ArrayJS :: JSVal -> IO JSVal
-
-allocFloat32Array :: (MonadIO m, ToJSVal a, Real a) => [a] -> m Float32Array
-allocFloat32Array xs = (Float32Array <$>) . liftIO $ do
-  jsval <- toJSValListOf (map realToFrac xs :: [Float])
-  allocFloat32ArrayJS jsval
+foreign import javascript unsafe "console.log($1)" printPtrJS :: Ptr a -> IO ()
+foreign import javascript unsafe "console.log($1)" printF32JS :: Float32Array -> IO ()
+foreign import javascript unsafe
+  "(function(o,n){return o.f3.subarray(0, n);})($1, $2)"
+  toFloatArrayJS :: Ptr Float -> Int -> IO Float32Array
+foreign import javascript unsafe
+  "(function(o,n){return o.i3.subarray(0, n);})($1, $2)"
+  toIntArrayJS :: Ptr Int -> Int -> IO Int32Array
+foreign import javascript unsafe
+  "(function(o,n){return Uint32Array.from(o.i3.subarray(0, n));})($1, $2)"
+  toUintArrayJS :: Ptr Word32 -> Int -> IO Uint32Array
 #else
-allocFloat32Array :: (MonadIO m, ToJSVal a, Real a) => [a] -> m Float32Array
-allocFloat32Array = error "only available on ghcjs"
+toFloatArrayJS :: Ptr Float  -> Int -> IO Float32Array
+toFloatArrayJS = error "only available on ghcjs"
+toIntArrayJS :: Ptr Int    -> Int -> IO Int32Array
+toIntArrayJS = error "only available on ghcjs"
+toUintArrayJS :: Ptr Word32 -> Int -> IO Uint32Array
+toUintArrayJS = error "only available on ghcjs"
 #endif
 
 #ifdef ghcjs_HOST_OS
-foreign import javascript unsafe "new Int32Array($1)"
-  allocInt32ArrayJS :: JSVal -> IO JSVal
+foreign import javascript unsafe "$1[$2]" indexf32 :: Float32Array -> Int -> IO Float
+foreign import javascript unsafe "$1.length" lengthf32 :: Float32Array -> IO Int
 
-allocInt32Array :: (MonadIO m, ToJSVal a, Integral a) => [a] -> m Int32Array
-allocInt32Array xs = (Int32Array <$>) . liftIO $ do
-  jsval <- toJSValListOf (map fromIntegral xs :: [Int])
-  allocInt32ArrayJS jsval
+foreign import javascript unsafe "$1[$2]" indexi32 :: Int32Array -> Int -> IO Int
+foreign import javascript unsafe "$1.length" lengthi32 :: Int32Array -> IO Int
+
+foreign import javascript unsafe "$1[$2]" indexu32 :: Uint32Array -> Int -> IO Word32
+foreign import javascript unsafe "$1.length" lengthu32 :: Uint32Array -> IO Int
+
 #else
-allocInt32Array :: (MonadIO m, ToJSVal a, Num a) => [a] -> m Int32Array
-allocInt32Array = error "only available on ghcjs"
+
+indexf32 :: Float32Array -> Int -> IO Float
+indexf32 = error "ghcjs only"
+indexi32 :: Int32Array -> Int -> IO Int
+indexi32 = error "ghcjs only"
+indexu32 :: Uint32Array -> Int -> IO Word32
+indexu32 = error "ghcjs only"
+lengthf32 :: Float32Array -> IO Int
+lengthf32 = error "ghcjs only"
+lengthi32 :: Int32Array -> IO Int
+lengthi32 = error "ghcjs only"
+lengthu32 :: Uint32Array -> IO Int
+lengthu32 = error "ghcjs only"
+
 #endif
+
+fromTypedArray
+  :: forall c a t b. (Storable a, Storable b, c a)
+  => (t -> IO Int)
+  -> (b -> a)
+  -> (t -> Int -> IO b)
+  -> t
+  -> IO (Vector a)
+fromTypedArray len mp ndx array = do
+  n <- len array
+  V.map mp <$> V.generateM n (ndx array)
+
+fromFloatArray' :: MonadIO m => Float32Array -> m (Vector Float)
+fromFloatArray' = liftIO . fromTypedArray @Fractional lengthf32 realToFrac indexf32
+
+fromIntArray' :: MonadIO m => Int32Array -> m (Vector Int)
+fromIntArray' = liftIO . fromTypedArray @Integral lengthi32 fromIntegral indexi32
+
+fromUintArray' :: MonadIO m => Uint32Array -> m (Vector Word32)
+fromUintArray' = liftIO . fromTypedArray @Integral lengthu32 fromIntegral indexu32
 
 newtype WebGL = WebGL { unWebGL :: GLES JSM
                                         GL.WebGLProgram
@@ -108,15 +158,27 @@ webgl ctx = WebGL GLES{..}
     true  = True
     false = False
 
-    --allocFloatArray = allocFloat32Array . toList
-    --allocIntArray   = allocInt32Array . toList
+    withFloatArray vec f = let vec' = V.map realToFrac vec in
+      liftIO $ V.unsafeWith vec' $ \ptr ->
+        toFloatArrayJS ptr (V.length vec') >>= f
+    withIntArray vec f = let vec' = V.map fromIntegral vec in
+      liftIO $ V.unsafeWith vec' $ \ptr ->
+        toIntArrayJS ptr (V.length vec') >>= f
+    withUintArray vec f = let vec' = V.map fromIntegral vec in
+      liftIO $ V.unsafeWith vec' $ \ptr ->
+        toUintArrayJS ptr (V.length vec') >>= f
 
-    glActiveTexture texture =
-      GL.activeTexture ctx texture
+    fromFloatArray = fromFloatArray'
+    fromIntArray   = fromIntArray'
+    fromUintArray  = fromUintArray'
+
+
+    glActiveTexture =
+      GL.activeTexture ctx
     glAttachShader program shader =
       GL.attachShader ctx (Just program) (Just shader)
-    glBindAttribLocation program loc name =
-      GL.bindAttribLocation ctx (Just program) loc name
+    glBindAttribLocation program =
+      GL.bindAttribLocation ctx (Just program)
     glBindBuffer enum buffer =
       GL.bindBuffer ctx enum (Just buffer)
     glBindFramebuffer enum framebuffer =
@@ -125,8 +187,8 @@ webgl ctx = WebGL GLES{..}
       GL.bindRenderbuffer ctx enum (Just renderbuffer)
     glBindTexture enum texture =
       GL.bindTexture ctx enum (Just texture)
-    glBlendColor a b c d =
-      GL.blendColor ctx a b c d
+    glBlendColor =
+      GL.blendColor ctx
     glBlendEquation enum =
       GL.blendEquation ctx enum
     glBlendEquationSeparate a b =
@@ -417,8 +479,8 @@ webgl ctx = WebGL GLES{..}
       liftJSM . fromJSVal =<< GL.getUniform ctx (Just program) (Just location)
     glGetUniformiv program location _ =
       liftJSM . fromJSVal =<< GL.getUniform ctx (Just program) (Just location)
-    glGetUniformLocation program str =
-      GL.getUniformLocation ctx (Just program) str
+    glGetUniformLocation program =
+      GL.getUniformLocation ctx (Just program)
     glGetVertexAttribfv index pname _
       | pname == GL.CURRENT_VERTEX_ATTRIB =
         liftJSM . fromJSVal =<< GL.getVertexAttrib ctx index pname
@@ -428,16 +490,13 @@ webgl ctx = WebGL GLES{..}
         jsval <- GL.getVertexAttrib ctx index pname
         liftJSM $ fromJSVal jsval >>= \case
           Nothing    -> return Nothing
-          Just glint -> Just <$> allocInt32Array [glint :: GL.GLint]
+          Just glint ->
+            Just <$> liftIO (V.unsafeWith (V.singleton glint) (`toIntArrayJS` 1))
       | otherwise = return Nothing
-    glHint a b =
-      GL.hint ctx a b
-    glIsBuffer buffer =
-      GL.isBuffer ctx $ Just buffer
-    glIsContextLost =
-      GL.isContextLost ctx
-    glIsEnabled enum =
-      GL.isEnabled ctx enum
+    glHint = GL.hint ctx
+    glIsBuffer = GL.isBuffer ctx . Just
+    glIsContextLost = GL.isContextLost ctx
+    glIsEnabled = GL.isEnabled ctx
     glIsFramebuffer fb =
       GL.isFramebuffer ctx $ Just fb
     glIsProgram p =
@@ -484,7 +543,7 @@ webgl ctx = WebGL GLES{..}
       GL.texParameteri ctx a b i
     glTexImage2D target level internalFormat format typ dat =
       GL.texImage2D ctx target level (fromIntegral internalFormat) format typ $ Just dat
-    glTexSubImage2D target level x y format typ dat =  do
+    glTexSubImage2D target level x y format typ dat =
       GL.texSubImage2D ctx target level x y format typ $ Just dat
     glUniform1f loc a =
       GL.uniform1f ctx (Just loc) a

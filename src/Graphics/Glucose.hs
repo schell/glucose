@@ -12,11 +12,14 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Graphics.Glucose where
 
-import           Control.Monad (forM_)
+import           Control.Monad        (forM_)
+import           Data.Bits            (Bits)
 import           Data.Proxy
+import           Data.Vector.Storable
+import           Data.Word            (Word32)
 
 #ifdef ghcjs_HOST_OS
-import           JSDOM.Types   (ToJSVal)
+import           JSDOM.Types          (ToJSVal)
 #endif
 
 data ShaderPrecisionFormat a = ShaderPrecisionFormat { spfRangeMin  :: a
@@ -28,6 +31,9 @@ data ActiveInfo a = ActiveInfo { aiSize :: a
                                , aiType :: a
                                , aiName :: String
                                }
+
+class BufferableData m from to where
+  withBufferable :: from -> (to -> m a) -> m a
 
 data GLES
   m
@@ -41,7 +47,6 @@ data GLES
   uint
   int
   intptr
-  bitfield
   boolean
   sizei
   ptr
@@ -53,6 +58,7 @@ data GLES
   floatarray
   intarray
   uintarray
+  vertexarrayobject
   extension =
 
   GLES { glActiveTexture :: enum -> m ()
@@ -62,15 +68,16 @@ data GLES
        , glBindFramebuffer :: enum -> framebuffer -> m ()
        , glBindRenderbuffer :: enum -> renderbuffer -> m ()
        , glBindTexture :: enum -> texture -> m ()
+       , glBindVertexArray :: vertexarrayobject -> m ()
        , glBlendColor :: clampf -> clampf -> clampf -> clampf -> m ()
        , glBlendEquation :: enum -> m ()
        , glBlendEquationSeparate :: enum -> enum -> m ()
        , glBlendFunc :: enum -> enum -> m ()
        , glBlendFuncSeparate :: enum -> enum -> enum -> enum -> m ()
-       , glBufferData :: () => enum -> bufferabledata -> enum -> m ()
-       , glBufferSubData :: () => enum -> intptr -> bufferabledata -> m ()
+       , glBufferData :: forall from. BufferableData m from bufferabledata => enum -> from -> enum -> m ()
+       , glBufferSubData :: forall from. BufferableData m from bufferabledata => enum -> intptr -> from -> m ()
        , glCheckFramebufferStatus :: enum -> m enum
-       , glClear :: bitfield -> m ()
+       , glClear :: Word32 -> m ()
        , glClearColor :: clampf -> clampf -> clampf -> clampf -> m ()
        , glClearDepth :: clampf -> m ()
        , glClearStencil :: int -> m ()
@@ -152,6 +159,7 @@ data GLES
        , glCreateRenderbuffer ::  m renderbuffer
        , glCreateShader :: enum -> m shader
        , glCreateTexture ::  m texture
+       , glCreateVertexArray :: m vertexarrayobject
        , glCullFace
           :: enum
           -- ^ mode
@@ -168,7 +176,7 @@ data GLES
        , glDeleteRenderbuffer :: renderbuffer -> m ()
        , glDeleteShader :: shader -> m ()
        , glDeleteTexture :: texture -> m ()
-
+       , glDeleteVertexArray :: vertexarrayobject -> m ()
          -- | Specifies a function that compares incoming pixel depth to the current
          -- depth buffer value
        , glDepthFunc
@@ -260,6 +268,7 @@ data GLES
        , glIsRenderbuffer :: renderbuffer -> m boolean
        , glIsShader :: shader -> m boolean
        , glIsTexture :: texture -> m boolean
+       , glIsVertexArray :: vertexarrayobject -> m boolean
        , glLineWidth :: float -> m ()
        , glLinkProgram :: program -> m ()
        , glPixelStorei :: enum -> int -> m ()
@@ -619,21 +628,25 @@ data GLES
        , true  :: boolean
          -- | A false value.
        , false :: boolean
+
+       , withFloatArray :: forall a b. (Storable a, Real a)     => Vector a -> (floatarray -> m b) -> m b
+       , withIntArray   :: forall a b. (Storable a, Integral a) => Vector a -> (intarray   -> m b) -> m b
+       , withUintArray  :: forall a b. (Storable a, Integral a) => Vector a -> (uintarray  -> m b) -> m b
+
+       , fromFloatArray :: floatarray -> m (Vector Float)
+       , fromIntArray   :: intarray   -> m (Vector Int)
+       , fromUintArray  :: uintarray  -> m (Vector Word32)
+
        }
 
--- #ifdef ghcjs_HOST_OS
---   -- | Alloc and fill a float array.
---   allocFloatArray :: (Foldable t, Real f, ToJSVal f, )     => t f -> m floatarray
---   -- | Alloc and fill an int array.
---   allocIntArray   :: (Foldable t, Integral i, ToJSVal i, ) => t i -> m intarray
--- #else
---   -- | Alloc and fill a float array.
---   allocFloatArray :: (Foldable t, Real f, )     => t f -> m floatarray
---   -- | Alloc and fill an int array.
---   allocIntArray   :: (Foldable t, Integral i, ) => t i -> m intarray
--- #endif
-
-class (Monad (M a), Eq (GLBoolean a)) => IsGLES a where
+class ( Monad (M a)
+      , Eq (GLBoolean a)
+      , Num (GLFloat a), Num (GLEnum a), Num (GLClampf a), Num (GLInt a)
+      , Num (GLUint a) , Num (GLSizei a), Num (GLIntptr a)
+      , Integral (GLEnum a), Integral (GLBoolean a)
+      , Bits (GLEnum a), Show (GLEnum a)
+      , Storable (GLFloat a), Storable (GLInt a), Storable (GLUint a)
+      ) => IsGLES a where
   type M a :: * -> *
   type GLProgram a
   type GLShader a
@@ -645,7 +658,6 @@ class (Monad (M a), Eq (GLBoolean a)) => IsGLES a where
   type GLUint a
   type GLInt a
   type GLIntptr a
-  type GLBitfield a
   type GLBoolean a
   type GLSizei a
   type GLPtr a
@@ -657,6 +669,7 @@ class (Monad (M a), Eq (GLBoolean a)) => IsGLES a where
   type GLFloatarray a
   type GLIntarray a
   type GLUintarray a
+  type GLVertexArrayObject a
   type GLExtension a
 
   gles :: a
@@ -671,7 +684,6 @@ class (Monad (M a), Eq (GLBoolean a)) => IsGLES a where
                (GLUint a)
                (GLInt a)
                (GLIntptr a)
-               (GLBitfield a)
                (GLBoolean a)
                (GLSizei a)
                (GLPtr a)
@@ -683,4 +695,5 @@ class (Monad (M a), Eq (GLBoolean a)) => IsGLES a where
                (GLFloatarray a)
                (GLIntarray a)
                (GLUintarray a)
+               (GLVertexArrayObject a)
                (GLExtension a)

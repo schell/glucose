@@ -13,12 +13,16 @@ module Graphics.Glucose.OpenGL where
 
 import           Control.Monad.IO.Class      (MonadIO, liftIO)
 import           Data.Foldable               (toList)
+import           Data.Vector.Storable        (Vector)
+import qualified Data.Vector.Storable        as V
 import           Foreign.C.String
+import           Foreign.ForeignPtr          (newForeignPtr)
 import           Foreign.Marshal.Array       (allocaArray, newArray, peekArray,
                                               withArray)
 import           Foreign.Marshal.Utils       (with)
-import           Foreign.Ptr                 (Ptr, intPtrToPtr, nullPtr)
-import           Foreign.Storable            (Storable)
+import           Foreign.Ptr                 (Ptr, castPtr, intPtrToPtr,
+                                              nullPtr)
+import           Foreign.Storable            (Storable, peekElemOff)
 import qualified Graphics.GL.Core33          as GL
 import qualified Graphics.GL.Embedded20      as GL (glGetShaderPrecisionFormat,
                                                     glReleaseShaderCompiler)
@@ -80,7 +84,6 @@ newtype OpenGL =
                             GL.GLuint
                             GL.GLint
                             GL.GLintptr
-                            GL.GLbitfield
                             GL.GLboolean
                             GL.GLsizei
                             (Ptr ())
@@ -92,35 +95,41 @@ newtype OpenGL =
                             (GL.GLsizei, Ptr GL.GLfloat)
                             (GL.GLsizei, Ptr GL.GLint)
                             (GL.GLsizei, Ptr GL.GLuint)
+                            GL.GLuint
                             ()
          }
 
 instance IsGLES OpenGL where
-  type M                 OpenGL = IO
-  type GLProgram         OpenGL = GL.GLuint
-  type GLShader          OpenGL = GL.GLuint
-  type GLTexture         OpenGL = GL.GLuint
-  type GLUniformlocation OpenGL = GL.GLint
-  type GLClampf          OpenGL = GL.GLfloat
-  type GLFloat           OpenGL = GL.GLfloat
-  type GLEnum            OpenGL = GL.GLenum
-  type GLUint            OpenGL = GL.GLuint
-  type GLInt             OpenGL = GL.GLint
-  type GLIntptr          OpenGL = GL.GLintptr
-  type GLBitfield        OpenGL = GL.GLbitfield
-  type GLBoolean         OpenGL = GL.GLboolean
-  type GLSizei           OpenGL = GL.GLsizei
-  type GLPtr             OpenGL = Ptr ()
-  type GLBufferabledata  OpenGL = (GL.GLsizeiptr, Ptr ())
-  type GLImagedata       OpenGL = ((Int, Int), Ptr ())
-  type GLBuffer          OpenGL = GL.GLuint
-  type GLFramebuffer     OpenGL = GL.GLuint
-  type GLRenderbuffer    OpenGL = GL.GLuint
-  type GLFloatarray      OpenGL = (GL.GLsizei, Ptr GL.GLfloat)
-  type GLIntarray        OpenGL = (GL.GLsizei, Ptr GL.GLint)
-  type GLUintarray       OpenGL = (GL.GLsizei, Ptr GL.GLuint)
-  type GLExtension       OpenGL = ()
+  type M                   OpenGL = IO
+  type GLProgram           OpenGL = GL.GLuint
+  type GLShader            OpenGL = GL.GLuint
+  type GLTexture           OpenGL = GL.GLuint
+  type GLUniformlocation   OpenGL = GL.GLint
+  type GLClampf            OpenGL = GL.GLfloat
+  type GLFloat             OpenGL = GL.GLfloat
+  type GLEnum              OpenGL = GL.GLenum
+  type GLUint              OpenGL = GL.GLuint
+  type GLInt               OpenGL = GL.GLint
+  type GLIntptr            OpenGL = GL.GLintptr
+  type GLBoolean           OpenGL = GL.GLboolean
+  type GLSizei             OpenGL = GL.GLsizei
+  type GLPtr               OpenGL = Ptr ()
+  type GLBufferabledata    OpenGL = (GL.GLsizeiptr, Ptr ())
+  type GLImagedata         OpenGL = ((Int, Int), Ptr ())
+  type GLBuffer            OpenGL = GL.GLuint
+  type GLFramebuffer       OpenGL = GL.GLuint
+  type GLRenderbuffer      OpenGL = GL.GLuint
+  type GLFloatarray        OpenGL = (GL.GLsizei, Ptr GL.GLfloat)
+  type GLIntarray          OpenGL = (GL.GLsizei, Ptr GL.GLint)
+  type GLUintarray         OpenGL = (GL.GLsizei, Ptr GL.GLuint)
+  type GLVertexArrayObject OpenGL = GL.GLuint
+  type GLExtension         OpenGL = ()
   gles = unOpenGL
+
+instance Storable a => BufferableData IO (Vector a) (GL.GLsizeiptr, Ptr ()) where
+  withBufferable vec f =
+    V.unsafeWith vec $ \ptr -> f (fromIntegral $ V.length vec, castPtr ptr)
+
 
 opengl :: OpenGL
 opengl = OpenGL GLES {..}
@@ -128,15 +137,24 @@ opengl = OpenGL GLES {..}
     true = GL.GL_TRUE
     false = GL.GL_FALSE
 
-    allocFloatArray xs = liftIO $ do
-      let xsList = map realToFrac $ toList xs
-          size   = fromIntegral $ length xs
-      (size,) <$> newArray xsList
+    withFloatArray vec f = let vecf = V.map realToFrac vec in
+      V.unsafeWith vecf $ f . (fromIntegral $ V.length vecf,)
+    withIntArray   vec f = let veci = V.map fromIntegral vec in
+      V.unsafeWith veci $ f . (fromIntegral $ V.length veci,)
+    withUintArray  vec f = let veci = V.map fromIntegral vec in
+      V.unsafeWith veci $ f . (fromIntegral $ V.length veci,)
 
-    allocIntArray xs = liftIO $ do
-      let xsList = map fromIntegral $ toList xs
-          size   = fromIntegral $ length xs
-      (size,) <$> newArray xsList
+    fromFloatArray (sz, ptr) =
+      V.map realToFrac   <$> V.generateM (fromIntegral sz) (peekElemOff ptr)
+    fromIntArray   (sz, ptr) =
+      V.map fromIntegral <$> V.generateM (fromIntegral sz) (peekElemOff ptr)
+    fromUintArray  (sz, ptr) =
+      V.map fromIntegral <$> V.generateM (fromIntegral sz) (peekElemOff ptr)
+
+    glCreateVertexArray = createWith GL.glGenVertexArrays
+    glBindVertexArray   = GL.glBindVertexArray
+    glIsVertexArray     = GL.glIsVertexArray
+    glDeleteVertexArray = deleteWith GL.glDeleteVertexArrays
 
     glActiveTexture = GL.glActiveTexture
     glAttachShader  = GL.glAttachShader
@@ -151,8 +169,10 @@ opengl = OpenGL GLES {..}
     glBlendEquationSeparate = GL.glBlendEquationSeparate
     glBlendFunc = GL.glBlendFunc
     glBlendFuncSeparate = GL.glBlendFuncSeparate
-    glBufferData target = uncurry $ GL.glBufferData target
-    glBufferSubData target offset = uncurry $ GL.glBufferSubData target offset
+    glBufferData target dat drawType = withBufferable dat $ \(sz, ptr) ->
+      GL.glBufferData target sz ptr drawType
+    glBufferSubData target offset dat = withBufferable dat $ uncurry $
+      GL.glBufferSubData target offset
     glCheckFramebufferStatus = GL.glCheckFramebufferStatus
     glClear = GL.glClear
     glClearColor = GL.glClearColor

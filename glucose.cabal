@@ -30,14 +30,18 @@ library
                       , ghcjs-base
                       , ghcjs-dom >= 0.8
                       , jsaddle
+                      , jsaddle >= 0.8.3.2
+                      , jsaddle >= 0.8.3.2
                       , jsaddle-dom >= 0.8
                       , mtl
+                      , vector
     exposed-modules:    Graphics.Glucose
                       , Graphics.Glucose.WebGL
                       , Graphics.Glucose.Utils
   else
     build-depends:      base >= 4.7 && < 5
                       , mtl
+                      , vector
     if flag(webgl)
       build-depends:      ghcjs-dom >= 0.8
                         , jsaddle
@@ -50,6 +54,21 @@ library
       exposed-modules:    Graphics.Glucose
                         , Graphics.Glucose.OpenGL
                         , Graphics.Glucose.Utils
+
+  default-language:    Haskell2010
+
+executable test-app
+  hs-source-dirs:     app
+  main-is:            Main.hs
+  build-depends:      base >= 4.7 && < 5
+                    , glucose
+                    , vector
+  if flag(ghcjs)
+    build-depends:   ghcjs-base
+                   , ghcjs-dom
+                   , jsaddle >= 0.8.3.2
+                   , jsaddle >= 0.8.3.2
+                   , jsaddle-dom >= 0.8
 
   default-language:    Haskell2010
 
