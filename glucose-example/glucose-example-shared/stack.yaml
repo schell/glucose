@@ -15,7 +15,7 @@
 # resolver:
 #  name: custom-snapshot
 #  location: "./custom-snapshot.yaml"
-resolver: lts-8.13
+resolver: lts-8.18
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -37,13 +37,18 @@ resolver: lts-8.13
 # will not be run. This is useful for tweaking upstream packages.
 packages:
 - .
-- ../glucose
+- ../../glucose
+- location:
+    git: https://github.com/phadej/gl.git
+    commit: e7fd09f260ea5986bbd0addb9e41384ca79c004e
+  extra-dep: true
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
 - ghcjs-dom-0.8.0.0
 - jsaddle-0.8.3.2
 - jsaddle-dom-0.8.0.0
+
 
 # Override default flag values for local packages and extra-deps
 flags: {}
