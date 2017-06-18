@@ -69,6 +69,7 @@ data GLES
        , glBindRenderbuffer :: enum -> renderbuffer -> m ()
        , glBindTexture :: enum -> texture -> m ()
        , glBindVertexArray :: vertexarrayobject -> m ()
+       , noVertexArray :: vertexarrayobject
        , glBlendColor :: clampf -> clampf -> clampf -> clampf -> m ()
        , glBlendEquation :: enum -> m ()
        , glBlendEquationSeparate :: enum -> enum -> m ()

@@ -6,6 +6,7 @@
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards       #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE UndecidableInstances  #-}
@@ -22,7 +23,7 @@ import           Foreign.Marshal.Array       (allocaArray, newArray, peekArray,
 import           Foreign.Marshal.Utils       (with)
 import           Foreign.Ptr                 (Ptr, castPtr, intPtrToPtr,
                                               nullPtr)
-import           Foreign.Storable            (Storable, peekElemOff)
+import           Foreign.Storable            (Storable, peekElemOff, sizeOf)
 import qualified Graphics.GL.Core33          as GL
 import qualified Graphics.GL.Embedded20      as GL (glGetShaderPrecisionFormat,
                                                     glReleaseShaderCompiler)
@@ -72,31 +73,40 @@ mayTrue :: Bool -> a -> Maybe a
 mayTrue True  a = Just a
 mayTrue False _ = Nothing
 
+
+data PtrInfo len a = PtrInfo { ptrElementSize      :: Int
+                             -- ^ The size in bytes of one specific element in this pointer/array.
+                             , ptrNumberOfElements :: len
+                             -- ^ The number of elements in the pointer/array.
+                             , ptrPtr              :: Ptr a
+                             -- ^ The pointer itself.
+                             }
+
 newtype OpenGL =
-  OpenGL { unOpenGL :: GLES IO
-                            GL.GLuint
-                            GL.GLuint
-                            GL.GLuint
-                            GL.GLint
-                            GL.GLfloat
-                            GL.GLfloat
-                            GL.GLenum
-                            GL.GLuint
-                            GL.GLint
-                            GL.GLintptr
-                            GL.GLboolean
-                            GL.GLsizei
-                            (Ptr ())
-                            (GL.GLsizeiptr, Ptr ())
-                            ((Int, Int), Ptr ())
-                            GL.GLuint
-                            GL.GLuint
-                            GL.GLuint
-                            (GL.GLsizei, Ptr GL.GLfloat)
-                            (GL.GLsizei, Ptr GL.GLint)
-                            (GL.GLsizei, Ptr GL.GLuint)
-                            GL.GLuint
-                            ()
+  OpenGL { unOpenGL :: GLES IO                             -- m
+                            GL.GLuint                      -- program
+                            GL.GLuint                      -- shader
+                            GL.GLuint                      -- texture
+                            GL.GLint                       -- uniformlocation
+                            GL.GLfloat                     -- clampf
+                            GL.GLfloat                     -- float
+                            GL.GLenum                      -- enum
+                            GL.GLuint                      -- uint
+                            GL.GLint                       -- int
+                            GL.GLintptr                    -- intptr
+                            GL.GLboolean                   -- boolean
+                            GL.GLsizei                     -- sizei
+                            (Ptr ())                       -- ptr
+                            (PtrInfo GL.GLsizeiptr ())     -- bufferabledata
+                            (PtrInfo (Int, Int) ())        -- imagedata
+                            GL.GLuint                      -- buffer
+                            GL.GLuint                      -- framebuffer
+                            GL.GLuint                      -- renderbuffer
+                            (PtrInfo GL.GLsizei GL.GLfloat)-- floatarray
+                            (PtrInfo GL.GLsizei GL.GLint)  -- intarray
+                            (PtrInfo GL.GLsizei GL.GLuint) -- uintarray
+                            GL.GLuint                      -- vertexarrayobject
+                            ()                             -- extension
          }
 
 instance IsGLES OpenGL where
@@ -114,22 +124,24 @@ instance IsGLES OpenGL where
   type GLBoolean           OpenGL = GL.GLboolean
   type GLSizei             OpenGL = GL.GLsizei
   type GLPtr               OpenGL = Ptr ()
-  type GLBufferabledata    OpenGL = (GL.GLsizeiptr, Ptr ())
-  type GLImagedata         OpenGL = ((Int, Int), Ptr ())
+  type GLBufferabledata    OpenGL = PtrInfo GL.GLsizeiptr ()
+  type GLImagedata         OpenGL = PtrInfo (Int, Int) ()
   type GLBuffer            OpenGL = GL.GLuint
   type GLFramebuffer       OpenGL = GL.GLuint
   type GLRenderbuffer      OpenGL = GL.GLuint
-  type GLFloatarray        OpenGL = (GL.GLsizei, Ptr GL.GLfloat)
-  type GLIntarray          OpenGL = (GL.GLsizei, Ptr GL.GLint)
-  type GLUintarray         OpenGL = (GL.GLsizei, Ptr GL.GLuint)
+  type GLFloatarray        OpenGL = PtrInfo GL.GLsizei GL.GLfloat
+  type GLIntarray          OpenGL = PtrInfo GL.GLsizei GL.GLint
+  type GLUintarray         OpenGL = PtrInfo GL.GLsizei GL.GLuint
   type GLVertexArrayObject OpenGL = GL.GLuint
   type GLExtension         OpenGL = ()
   gles = unOpenGL
 
-instance Storable a => BufferableData IO (Vector a) (GL.GLsizeiptr, Ptr ()) where
+instance Storable a => BufferableData IO (Vector a) (PtrInfo GL.GLsizeiptr ()) where
   withBufferable vec f =
-    V.unsafeWith vec $ \ptr -> f (fromIntegral $ V.length vec, castPtr ptr)
-
+    let numVertices = fromIntegral $ V.length vec
+        sizeElement = sizeOf (undefined :: a)
+    in V.unsafeWith vec $ \ptr ->
+                            f $ PtrInfo sizeElement numVertices $ castPtr ptr
 
 opengl :: OpenGL
 opengl = OpenGL GLES {..}
@@ -137,24 +149,31 @@ opengl = OpenGL GLES {..}
     true = GL.GL_TRUE
     false = GL.GL_FALSE
 
-    withFloatArray vec f = let vecf = V.map realToFrac vec in
-      V.unsafeWith vecf $ f . (fromIntegral $ V.length vecf,)
-    withIntArray   vec f = let veci = V.map fromIntegral vec in
-      V.unsafeWith veci $ f . (fromIntegral $ V.length veci,)
-    withUintArray  vec f = let veci = V.map fromIntegral vec in
-      V.unsafeWith veci $ f . (fromIntegral $ V.length veci,)
+    withFloatArray vec f =
+      let vecf = V.map realToFrac vec
+          sz   = sizeOf (undefined :: GL.GLfloat)
+      in V.unsafeWith vecf $ f . (PtrInfo sz (fromIntegral $ V.length vecf))
+    withIntArray   vec f =
+      let veci = V.map fromIntegral vec
+          sz   = sizeOf (undefined :: GL.GLint)
+      in V.unsafeWith veci $ f . (PtrInfo sz (fromIntegral $ V.length veci))
+    withUintArray  vec f =
+      let veci = V.map fromIntegral vec
+          sz   = sizeOf (undefined :: GL.GLuint)
+      in V.unsafeWith veci $ f . (PtrInfo sz (fromIntegral $ V.length veci))
 
-    fromFloatArray (sz, ptr) =
-      V.map realToFrac   <$> V.generateM (fromIntegral sz) (peekElemOff ptr)
-    fromIntArray   (sz, ptr) =
-      V.map fromIntegral <$> V.generateM (fromIntegral sz) (peekElemOff ptr)
-    fromUintArray  (sz, ptr) =
-      V.map fromIntegral <$> V.generateM (fromIntegral sz) (peekElemOff ptr)
+    fromFloatArray (PtrInfo _ n ptr) =
+      V.map realToFrac   <$> V.generateM (fromIntegral n) (peekElemOff ptr)
+    fromIntArray   (PtrInfo _ n ptr) =
+      V.map fromIntegral <$> V.generateM (fromIntegral n) (peekElemOff ptr)
+    fromUintArray  (PtrInfo _ n ptr) =
+      V.map fromIntegral <$> V.generateM (fromIntegral n) (peekElemOff ptr)
 
     glCreateVertexArray = createWith GL.glGenVertexArrays
     glBindVertexArray   = GL.glBindVertexArray
     glIsVertexArray     = GL.glIsVertexArray
     glDeleteVertexArray = deleteWith GL.glDeleteVertexArrays
+    noVertexArray       = 0
 
     glActiveTexture = GL.glActiveTexture
     glAttachShader  = GL.glAttachShader
@@ -169,10 +188,10 @@ opengl = OpenGL GLES {..}
     glBlendEquationSeparate = GL.glBlendEquationSeparate
     glBlendFunc = GL.glBlendFunc
     glBlendFuncSeparate = GL.glBlendFuncSeparate
-    glBufferData target dat drawType = withBufferable dat $ \(sz, ptr) ->
-      GL.glBufferData target sz ptr drawType
-    glBufferSubData target offset dat = withBufferable dat $ uncurry $
-      GL.glBufferSubData target offset
+    glBufferData target dat drawType = withBufferable dat $ \(PtrInfo sz n ptr) ->
+      GL.glBufferData target (fromIntegral sz * n) ptr drawType
+    glBufferSubData target offset dat = withBufferable dat $ \(PtrInfo sz n ptr) ->
+      GL.glBufferSubData target offset (fromIntegral sz * n) ptr
     glCheckFramebufferStatus = GL.glCheckFramebufferStatus
     glClear = GL.glClear
     glClearColor = GL.glClearColor
@@ -441,19 +460,19 @@ opengl = OpenGL GLES {..}
           [glfloat] <- peekArray 1 ptr
           return (Nothing, Nothing, Nothing, Nothing, Just glfloat)
       | otherwise = return (Nothing, Nothing, Nothing, Nothing, Nothing)
-    glGetUniformfv program location array = do
-      GL.glGetUniformfv program location $ snd array
-      return $ Just array
-    glGetUniformiv program location array = do
-      GL.glGetUniformiv program location $ snd array
-      return $ Just array
+    glGetUniformfv program location (PtrInfo sz n ptr) = do
+      GL.glGetUniformfv program location ptr
+      return $ Just $ PtrInfo sz n ptr
+    glGetUniformiv program location (PtrInfo sz n ptr) = do
+      GL.glGetUniformiv program location ptr
+      return $ Just $ PtrInfo sz n ptr
     glGetUniformLocation program str = liftIO $
       withCString str $ GL.glGetUniformLocation program
     glGetVertexAttribfv index pname array = do
-      GL.glGetVertexAttribfv index pname $ snd array
+      GL.glGetVertexAttribfv index pname $ ptrPtr array
       return $ Just array
     glGetVertexAttribiv index pname array = do
-      GL.glGetVertexAttribiv index pname $ snd array
+      GL.glGetVertexAttribiv index pname $ ptrPtr array
       return $ Just array
     glHint = GL.glHint
     glIsBuffer = GL.glIsBuffer
@@ -482,39 +501,39 @@ opengl = OpenGL GLES {..}
     glStencilOpSeparate = GL.glStencilOpSeparate
     glTexParameterf = GL.glTexParameterf
     glTexParameteri = GL.glTexParameteri
-    glTexImage2D target level internalFormat format typ ((w, h), dat) =
+    glTexImage2D target level internalFormat format typ (PtrInfo _ (w, h) dat) =
       GL.glTexImage2D target level internalFormat (fromIntegral w) (fromIntegral h) 0 format typ dat
-    glTexSubImage2D target level x y format typ ((w, h), dat) =
+    glTexSubImage2D target level x y format typ (PtrInfo _ (w, h) dat) =
       GL.glTexSubImage2D target level x y (fromIntegral w) (fromIntegral h) format typ dat
     glUniform1f  = GL.glUniform1f
-    glUniform1fv loc (sz, dat) = GL.glUniform1fv loc sz dat
+    glUniform1fv loc (PtrInfo _ n dat) = GL.glUniform1fv loc n dat
     glUniform1i  = GL.glUniform1i
-    glUniform1iv loc (sz, dat) = GL.glUniform1iv loc sz dat
+    glUniform1iv loc (PtrInfo _ n dat) = GL.glUniform1iv loc n dat
     glUniform2f  = GL.glUniform2f
-    glUniform2fv loc (sz, dat) = GL.glUniform2fv loc sz dat
+    glUniform2fv loc (PtrInfo _ n dat) = GL.glUniform2fv loc n dat
     glUniform2i  = GL.glUniform2i
-    glUniform2iv loc (sz, dat) = GL.glUniform2iv loc sz dat
+    glUniform2iv loc (PtrInfo _ n dat) = GL.glUniform2iv loc n dat
     glUniform3f  = GL.glUniform3f
-    glUniform3fv loc (sz, dat) = GL.glUniform3fv loc sz dat
+    glUniform3fv loc (PtrInfo _ n dat) = GL.glUniform3fv loc n dat
     glUniform3i  = GL.glUniform3i
-    glUniform3iv loc (sz, dat) = GL.glUniform3iv loc sz dat
+    glUniform3iv loc (PtrInfo _ n dat) = GL.glUniform3iv loc n dat
     glUniform4f  = GL.glUniform4f
-    glUniform4fv loc (sz, dat) = GL.glUniform4fv loc sz dat
+    glUniform4fv loc (PtrInfo _ n dat) = GL.glUniform4fv loc n dat
     glUniform4i  = GL.glUniform4i
-    glUniform4iv loc (sz, dat) = GL.glUniform4iv loc sz dat
-    glUniformMatrix2fv loc trans (sz, dat) = GL.glUniformMatrix2fv loc sz trans dat
-    glUniformMatrix3fv loc trans (sz, dat) = GL.glUniformMatrix3fv loc sz trans dat
-    glUniformMatrix4fv loc trans (sz, dat) = GL.glUniformMatrix4fv loc sz trans dat
+    glUniform4iv loc (PtrInfo _ n dat) = GL.glUniform4iv loc n dat
+    glUniformMatrix2fv loc trans (PtrInfo _ n dat) = GL.glUniformMatrix2fv loc n trans dat
+    glUniformMatrix3fv loc trans (PtrInfo _ n dat) = GL.glUniformMatrix3fv loc n trans dat
+    glUniformMatrix4fv loc trans (PtrInfo _ n dat) = GL.glUniformMatrix4fv loc n trans dat
     glUseProgram = GL.glUseProgram
     glValidateProgram = GL.glValidateProgram
     glVertexAttrib1f = GL.glVertexAttrib1f
-    glVertexAttrib1fv loc (_, dat) = GL.glVertexAttrib1fv loc dat
+    glVertexAttrib1fv loc (PtrInfo _ _ dat) = GL.glVertexAttrib1fv loc dat
     glVertexAttrib2f = GL.glVertexAttrib2f
-    glVertexAttrib2fv loc (_, dat) = GL.glVertexAttrib2fv loc dat
+    glVertexAttrib2fv loc (PtrInfo _ _ dat) = GL.glVertexAttrib2fv loc dat
     glVertexAttrib3f = GL.glVertexAttrib3f
-    glVertexAttrib3fv loc (_, dat) = GL.glVertexAttrib3fv loc dat
+    glVertexAttrib3fv loc (PtrInfo _ _ dat) = GL.glVertexAttrib3fv loc dat
     glVertexAttrib4f = GL.glVertexAttrib4f
-    glVertexAttrib4fv loc (_, dat) = GL.glVertexAttrib4fv loc dat
+    glVertexAttrib4fv loc (PtrInfo _ _ dat) = GL.glVertexAttrib4fv loc dat
     glVertexAttribPointer index sz typ normed stride n =
       GL.glVertexAttribPointer index sz typ normed stride (intPtrToPtr $ fromIntegral n)
     glViewport = GL.glViewport

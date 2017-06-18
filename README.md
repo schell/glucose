@@ -70,4 +70,5 @@ That's it!
   - [ ] w/ webgl  2   implementation
 
 - [ ] add `TypedArray` instances to `jsaddle` to make marshalling easier, or
-      convert all array types to `(Foldable f, Functor f, Storable a) => Vector (f a)`.
+      convert all array types to
+      `(Foldable f, Functor f, Storable a) => Vector (f a)`.
