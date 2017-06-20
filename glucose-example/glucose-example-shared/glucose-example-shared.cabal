@@ -13,6 +13,15 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
+flag webgl
+ description: Disable the default OpenGL implementation in favor of WebGL.
+ default: False
+
+flag ghcjs
+  description: Build for ghcjs and WebGL
+  default: False
+
+
 library
   hs-source-dirs:      src
   exposed-modules:     Graphics.Glucose.Shared
@@ -21,8 +30,14 @@ library
                      , glucose
                      , linear
                      , mtl
-                     , sdl2
                      , vector
+
+  if flag(webgl)
+     build-depends:  jsaddle, jsaddle-dom
+  else
+    if !flag(ghcjs)
+      build-depends: sdl2
+
   default-language:    Haskell2010
 
 source-repository head

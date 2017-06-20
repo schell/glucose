@@ -97,14 +97,10 @@ newtype OpenGL =
                             GL.GLboolean                   -- boolean
                             GL.GLsizei                     -- sizei
                             (Ptr ())                       -- ptr
-                            (PtrInfo GL.GLsizeiptr ())     -- bufferabledata
                             (PtrInfo (Int, Int) ())        -- imagedata
                             GL.GLuint                      -- buffer
                             GL.GLuint                      -- framebuffer
                             GL.GLuint                      -- renderbuffer
-                            (PtrInfo GL.GLsizei GL.GLfloat)-- floatarray
-                            (PtrInfo GL.GLsizei GL.GLint)  -- intarray
-                            (PtrInfo GL.GLsizei GL.GLuint) -- uintarray
                             GL.GLuint                      -- vertexarrayobject
                             ()                             -- extension
          }
@@ -124,24 +120,13 @@ instance IsGLES OpenGL where
   type GLBoolean           OpenGL = GL.GLboolean
   type GLSizei             OpenGL = GL.GLsizei
   type GLPtr               OpenGL = Ptr ()
-  type GLBufferabledata    OpenGL = PtrInfo GL.GLsizeiptr ()
   type GLImagedata         OpenGL = PtrInfo (Int, Int) ()
   type GLBuffer            OpenGL = GL.GLuint
   type GLFramebuffer       OpenGL = GL.GLuint
   type GLRenderbuffer      OpenGL = GL.GLuint
-  type GLFloatarray        OpenGL = PtrInfo GL.GLsizei GL.GLfloat
-  type GLIntarray          OpenGL = PtrInfo GL.GLsizei GL.GLint
-  type GLUintarray         OpenGL = PtrInfo GL.GLsizei GL.GLuint
   type GLVertexArrayObject OpenGL = GL.GLuint
   type GLExtension         OpenGL = ()
   gles = unOpenGL
-
-instance Storable a => BufferableData IO (Vector a) (PtrInfo GL.GLsizeiptr ()) where
-  withBufferable vec f =
-    let numVertices = fromIntegral $ V.length vec
-        sizeElement = sizeOf (undefined :: a)
-    in V.unsafeWith vec $ \ptr ->
-                            f $ PtrInfo sizeElement numVertices $ castPtr ptr
 
 opengl :: OpenGL
 opengl = OpenGL GLES {..}
@@ -152,15 +137,15 @@ opengl = OpenGL GLES {..}
     withFloatArray vec f =
       let vecf = V.map realToFrac vec
           sz   = sizeOf (undefined :: GL.GLfloat)
-      in V.unsafeWith vecf $ f . (PtrInfo sz (fromIntegral $ V.length vecf))
+      in V.unsafeWith vecf $ f . PtrInfo sz (fromIntegral $ V.length vecf)
     withIntArray   vec f =
       let veci = V.map fromIntegral vec
           sz   = sizeOf (undefined :: GL.GLint)
-      in V.unsafeWith veci $ f . (PtrInfo sz (fromIntegral $ V.length veci))
+      in V.unsafeWith veci $ f . PtrInfo sz (fromIntegral $ V.length veci)
     withUintArray  vec f =
       let veci = V.map fromIntegral vec
           sz   = sizeOf (undefined :: GL.GLuint)
-      in V.unsafeWith veci $ f . (PtrInfo sz (fromIntegral $ V.length veci))
+      in V.unsafeWith veci $ f . PtrInfo sz (fromIntegral $ V.length veci)
 
     fromFloatArray (PtrInfo _ n ptr) =
       V.map realToFrac   <$> V.generateM (fromIntegral n) (peekElemOff ptr)
@@ -188,10 +173,23 @@ opengl = OpenGL GLES {..}
     glBlendEquationSeparate = GL.glBlendEquationSeparate
     glBlendFunc = GL.glBlendFunc
     glBlendFuncSeparate = GL.glBlendFuncSeparate
-    glBufferData target dat drawType = withBufferable dat $ \(PtrInfo sz n ptr) ->
-      GL.glBufferData target (fromIntegral sz * n) ptr drawType
-    glBufferSubData target offset dat = withBufferable dat $ \(PtrInfo sz n ptr) ->
-      GL.glBufferSubData target offset (fromIntegral sz * n) ptr
+
+    glBufferData :: forall a. (Storable a, ToTypedVector a)
+                 => GL.GLenum -> Vector a -> GL.GLenum -> IO ()
+    glBufferData target vec drawType =
+      let n  = fromIntegral $ V.length vec
+          sz = sizeOf (undefined :: a)
+      in V.unsafeWith vec $ \ptr ->
+           GL.glBufferData target (fromIntegral sz * n) (castPtr ptr) drawType
+
+    glBufferSubData :: forall a. (Storable a, ToTypedVector a)
+                    => GL.GLenum -> GL.GLintptr -> Vector a -> IO ()
+    glBufferSubData target offset vec =
+      let n  = fromIntegral $ V.length vec
+          sz = sizeOf (undefined :: a)
+      in V.unsafeWith vec $ \ptr ->
+           GL.glBufferSubData target offset (fromIntegral sz * n) $ castPtr ptr
+
     glCheckFramebufferStatus = GL.glCheckFramebufferStatus
     glClear = GL.glClear
     glClearColor = GL.glClearColor
@@ -460,20 +458,20 @@ opengl = OpenGL GLES {..}
           [glfloat] <- peekArray 1 ptr
           return (Nothing, Nothing, Nothing, Nothing, Just glfloat)
       | otherwise = return (Nothing, Nothing, Nothing, Nothing, Nothing)
-    glGetUniformfv program location (PtrInfo sz n ptr) = do
-      GL.glGetUniformfv program location ptr
-      return $ Just $ PtrInfo sz n ptr
-    glGetUniformiv program location (PtrInfo sz n ptr) = do
+    glGetUniformfv program location n = withArray (replicate n 0) $ \ptr -> do
+        GL.glGetUniformfv program location ptr
+        V.fromList . map realToFrac <$> peekArray n ptr
+    glGetUniformiv program location n = withArray (replicate n 0) $ \ptr -> do
       GL.glGetUniformiv program location ptr
-      return $ Just $ PtrInfo sz n ptr
+      V.fromList . map fromIntegral <$> peekArray n ptr
     glGetUniformLocation program str = liftIO $
       withCString str $ GL.glGetUniformLocation program
-    glGetVertexAttribfv index pname array = do
-      GL.glGetVertexAttribfv index pname $ ptrPtr array
-      return $ Just array
-    glGetVertexAttribiv index pname array = do
-      GL.glGetVertexAttribiv index pname $ ptrPtr array
-      return $ Just array
+    glGetVertexAttribfv index pname n = withArray (replicate n 0) $ \ptr -> do
+      GL.glGetVertexAttribfv index pname ptr
+      V.fromList . map realToFrac <$> liftIO (peekArray n ptr)
+    glGetVertexAttribiv index pname n = withArray (replicate n 0) $ \ptr -> do
+      GL.glGetVertexAttribiv index pname ptr
+      V.fromList . map fromIntegral <$> liftIO (peekArray n ptr)
     glHint = GL.glHint
     glIsBuffer = GL.glIsBuffer
     glIsContextLost = return 0
@@ -506,34 +504,50 @@ opengl = OpenGL GLES {..}
     glTexSubImage2D target level x y format typ (PtrInfo _ (w, h) dat) =
       GL.glTexSubImage2D target level x y (fromIntegral w) (fromIntegral h) format typ dat
     glUniform1f  = GL.glUniform1f
-    glUniform1fv loc (PtrInfo _ n dat) = GL.glUniform1fv loc n dat
+
+    glUniform1fv loc vec = V.unsafeWith vec $ \ptr ->
+      GL.glUniform1fv loc (fromIntegral $ V.length vec) $ castPtr ptr
     glUniform1i  = GL.glUniform1i
-    glUniform1iv loc (PtrInfo _ n dat) = GL.glUniform1iv loc n dat
+    glUniform1iv loc vec = V.unsafeWith vec $ \ptr ->
+      GL.glUniform1iv loc (fromIntegral $ V.length vec) $ castPtr ptr
     glUniform2f  = GL.glUniform2f
-    glUniform2fv loc (PtrInfo _ n dat) = GL.glUniform2fv loc n dat
+    glUniform2fv loc vec = V.unsafeWith vec $ \ptr ->
+      GL.glUniform2fv loc (fromIntegral $ V.length vec) $ castPtr ptr
     glUniform2i  = GL.glUniform2i
-    glUniform2iv loc (PtrInfo _ n dat) = GL.glUniform2iv loc n dat
+    glUniform2iv loc vec = V.unsafeWith vec $ \ptr ->
+      GL.glUniform2iv loc (fromIntegral $ V.length vec) $ castPtr ptr
     glUniform3f  = GL.glUniform3f
-    glUniform3fv loc (PtrInfo _ n dat) = GL.glUniform3fv loc n dat
+    glUniform3fv loc vec = V.unsafeWith vec $ \ptr ->
+      GL.glUniform3fv loc (fromIntegral $ V.length vec) $ castPtr ptr
     glUniform3i  = GL.glUniform3i
-    glUniform3iv loc (PtrInfo _ n dat) = GL.glUniform3iv loc n dat
+    glUniform3iv loc vec = V.unsafeWith vec $ \ptr ->
+      GL.glUniform3iv loc (fromIntegral $ V.length vec) $ castPtr ptr
     glUniform4f  = GL.glUniform4f
-    glUniform4fv loc (PtrInfo _ n dat) = GL.glUniform4fv loc n dat
+    glUniform4fv loc vec = V.unsafeWith vec $ \ptr ->
+      GL.glUniform4fv loc (fromIntegral $ V.length vec) $ castPtr ptr
     glUniform4i  = GL.glUniform4i
-    glUniform4iv loc (PtrInfo _ n dat) = GL.glUniform4iv loc n dat
-    glUniformMatrix2fv loc trans (PtrInfo _ n dat) = GL.glUniformMatrix2fv loc n trans dat
-    glUniformMatrix3fv loc trans (PtrInfo _ n dat) = GL.glUniformMatrix3fv loc n trans dat
-    glUniformMatrix4fv loc trans (PtrInfo _ n dat) = GL.glUniformMatrix4fv loc n trans dat
+    glUniform4iv loc vec = V.unsafeWith vec $ \ptr ->
+      GL.glUniform4iv loc (fromIntegral $ V.length vec) $ castPtr ptr
+    glUniformMatrix2fv loc trans vec = V.unsafeWith vec $ \ptr ->
+      GL.glUniformMatrix2fv loc (fromIntegral $ V.length vec) trans $ castPtr ptr
+    glUniformMatrix3fv loc trans vec = V.unsafeWith vec $ \ptr ->
+      GL.glUniformMatrix3fv loc (fromIntegral $ V.length vec) trans $ castPtr ptr
+    glUniformMatrix4fv loc trans vec = V.unsafeWith vec $ \ptr ->
+      GL.glUniformMatrix4fv loc (fromIntegral $ V.length vec) trans $ castPtr ptr
     glUseProgram = GL.glUseProgram
     glValidateProgram = GL.glValidateProgram
     glVertexAttrib1f = GL.glVertexAttrib1f
-    glVertexAttrib1fv loc (PtrInfo _ _ dat) = GL.glVertexAttrib1fv loc dat
+    glVertexAttrib1fv loc vec = V.unsafeWith (V.map realToFrac vec) $
+      GL.glVertexAttrib1fv loc
     glVertexAttrib2f = GL.glVertexAttrib2f
-    glVertexAttrib2fv loc (PtrInfo _ _ dat) = GL.glVertexAttrib2fv loc dat
+    glVertexAttrib2fv loc vec = V.unsafeWith (V.map realToFrac vec) $
+      GL.glVertexAttrib2fv loc
     glVertexAttrib3f = GL.glVertexAttrib3f
-    glVertexAttrib3fv loc (PtrInfo _ _ dat) = GL.glVertexAttrib3fv loc dat
+    glVertexAttrib3fv loc vec = V.unsafeWith (V.map realToFrac vec) $
+      GL.glVertexAttrib3fv loc
     glVertexAttrib4f = GL.glVertexAttrib4f
-    glVertexAttrib4fv loc (PtrInfo _ _ dat) = GL.glVertexAttrib4fv loc dat
+    glVertexAttrib4fv loc vec = V.unsafeWith (V.map realToFrac vec) $
+      GL.glVertexAttrib4fv loc
     glVertexAttribPointer index sz typ normed stride n =
       GL.glVertexAttribPointer index sz typ normed stride (intPtrToPtr $ fromIntegral n)
     glViewport = GL.glViewport

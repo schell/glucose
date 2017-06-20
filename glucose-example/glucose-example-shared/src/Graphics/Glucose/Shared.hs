@@ -8,25 +8,23 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeFamilies          #-}
 
 module Graphics.Glucose.Shared
     ( makeProgram
-    , setupGeometry
+    , setup
     , drawScene
     ) where
 
-import           Control.Monad              (forever, void)
 import           Control.Monad.IO.Class     (MonadIO (..))
 import           Control.Monad.Trans        (lift)
 import           Control.Monad.Trans.Either (EitherT (..), runEitherT)
-import           Data.Bits                  ((.|.))
 import           Data.Foldable              (Foldable)
 import qualified Data.Foldable              as F
 import           Data.Vector.Storable       (Storable, Vector)
 import qualified Data.Vector.Storable       as V
 import           Graphics.Glucose
-import           Graphics.Glucose.OpenGL    (OpenGL (..), opengl)
 import           Graphics.Glucose.Utils     (compileProgram, compileShader)
 import           Linear
 
@@ -36,8 +34,10 @@ vertexShaderSource = unlines
   ,"in vec2 position;"
   ,"in vec4 color;"
   ,"out vec4 fcolor;"
+  ,"uniform mat4 projection;"
+  ,"uniform mat4 modelview;"
   ,"void main () {"
-  ,"  gl_Position = vec4(position, 0.0, 1.0);"
+  ,"  gl_Position = projection * modelview * vec4(position.xy, 0.0, 1.0);"
   ,"  fcolor = color;"
   ,"}"
   ]
@@ -53,10 +53,11 @@ fragmentShaderSource = unlines
   ]
 
 positions :: Vector (V2 Float)
-positions = V.fromList [V2 0 0.5, V2 0.5 (-0.5), V2 (-0.5) (-0.5)]
+positions =
+  V.fromList [V2 (-50) (-50), V2 50 (-50), V2 50 50, V2 (-50) 50, V2 (-50) (-50)]
 
 colors :: Vector (V4 Float)
-colors = V.fromList [V4 1 0 0 1, V4 0 1 0 1, V4 0 0 1 1]
+colors = V.fromList [V4 1 0 0 1, V4 0 1 0 1, V4 0 0 1 1, V4 1 1 1 1]
 
 clearError :: (MonadIO (M a), IsGLES a) => a -> String -> (M a) ()
 clearError gl msg = do
@@ -64,7 +65,7 @@ clearError gl msg = do
   err <- glGetError
   let msg2 = concat ["(", show err, ") at ", msg]
   maybe (return ()) (liftIO . putStrLn . unwords . (:[msg2])) $ case () of
-    () | err == fromIntegral false   -> Nothing
+    () | err == gl_NO_ERROR          -> Nothing
        | err == gl_INVALID_ENUM      -> Just "INVALID_ENUM"
        | err == gl_INVALID_VALUE     -> Just "INVALID_VALUE"
        | err == gl_INVALID_OPERATION -> Just "INVALID_OPERATION"
@@ -89,15 +90,12 @@ flatten = V.concatMap (V.fromList . F.toList)
 hoist :: Monad m => m (Either e a) -> EitherT e m a
 hoist = EitherT
 
-setupGeometry
-  :: forall a.
-     ( IsGLES a
-     , BufferableData (M a) (Vector Float) (GLBufferabledata a)
-     , MonadIO (M a)
-     )
+setup
+  :: forall a. (IsGLES a, MonadIO (M a))
   => a
-  -> (M a) (GLVertexArrayObject a, GLBuffer a, GLBuffer a)
-setupGeometry gl = do
+  -> GLProgram a
+  -> (M a) (GLVertexArrayObject a, GLUniformlocation a, GLUniformlocation a)
+setup gl program = do
   let GLES{..} = gles gl
   -- Create a new VAO to hold our array settings
   vao <- glCreateVertexArray
@@ -120,17 +118,28 @@ setupGeometry gl = do
   clearError gl "setupGeometry.setupColorStuff"
 
   glBindVertexArray noVertexArray
-  return (vao, posBuffer, colorBuffer)
+
+  (vao,,) <$> glGetUniformLocation program "projection"
+          <*> glGetUniformLocation program "modelview"
 
 drawScene
   :: (MonadIO (M a), IsGLES a)
   => a
   -> GLVertexArrayObject a
+  -> GLUniformlocation a
+  -> GLUniformlocation a
+  -> Float
+  -> Float
+  -> Float
   -> (M a) ()
-drawScene gl vao = do
+drawScene gl vao projectionLoc modelviewLoc w h t = do
   let GLES{..} = gles gl
   glClear $ fromIntegral gl_COLOR_BUFFER_BIT
+  glViewport 0 0 (fromIntegral $ floor w) (fromIntegral $ floor h)
+  glUniformMatrix4fv projectionLoc true $ V.singleton $ ortho 0 w h 0 0 1
+  let modelview = mkTransformation (axisAngle (V3 0 0 1) t) (V3 (w/2) (h/2) 0)
+  glUniformMatrix4fv modelviewLoc true $ V.singleton modelview
   glBindVertexArray vao
-  glDrawArrays gl_TRIANGLES 0 3
+  glDrawArrays gl_TRIANGLE_FAN 0 4
   clearError gl "drawScene.glDrawArrays"
   glBindVertexArray noVertexArray

@@ -1,6 +1,10 @@
 {-# LANGUAGE AllowAmbiguousTypes   #-}
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE ConstraintKinds       #-}
+{-# LANGUAGE DeriveAnyClass        #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE JavaScriptFFI         #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -9,12 +13,15 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
+{-# LANGUAGE UndecidableInstances  #-}
 module Graphics.Glucose.WebGL where
 
 import           Control.Monad.IO.Class            (MonadIO, liftIO)
 import           Data.Foldable                     (toList)
 import           Data.Maybe                        (fromJust, fromMaybe)
-import           Data.Vector.Storable              (Storable, Vector)
+import           Data.Vector.Storable              (Storable, Vector,
+                                                    unsafeWith)
 import qualified Data.Vector.Storable              as V
 import           Data.Word                         (Word32)
 import           Foreign.Ptr
@@ -23,11 +30,14 @@ import           GHCJS.Marshal
 import           GHCJS.Types                       (JSVal)
 --import           JavaScript.TypedArray             as TA
 import           JSDOM.ImageData
+import           JSDOM.OESVertexArrayObject        as GL
 import           JSDOM.Types                       as GL
 import           JSDOM.WebGLActiveInfo
 import           JSDOM.WebGLRenderingContextBase   as GL
 import           JSDOM.WebGLShaderPrecisionFormat
 import           Language.Javascript.JSaddle.Types (MonadJSM, liftJSM)
+import           Language.Javascript.JSaddle.Value (JSNull (..))
+import           Linear                            (M22, M33, M44, V2, V3, V4)
 
 import           Graphics.Glucose
 
@@ -90,88 +100,103 @@ fromTypedArray len mp ndx array = do
   n <- len array
   V.map mp <$> V.generateM n (ndx array)
 
-fromFloatArray' :: MonadIO m => Float32Array -> m (Vector Float)
-fromFloatArray' = liftIO . fromTypedArray @Fractional lengthf32 realToFrac indexf32
+fromFloatArray :: MonadIO m => Float32Array -> m (Vector Float)
+fromFloatArray = liftIO . fromTypedArray @Fractional lengthf32 realToFrac indexf32
 
-fromIntArray' :: MonadIO m => Int32Array -> m (Vector Int)
-fromIntArray' = liftIO . fromTypedArray @Integral lengthi32 fromIntegral indexi32
+fromIntArray :: MonadIO m => Int32Array -> m (Vector Int)
+fromIntArray = liftIO . fromTypedArray @Integral lengthi32 fromIntegral indexi32
 
-fromUintArray' :: MonadIO m => Uint32Array -> m (Vector Word32)
-fromUintArray' = liftIO . fromTypedArray @Integral lengthu32 fromIntegral indexu32
+fromUintArray :: MonadIO m => Uint32Array -> m (Vector Word32)
+fromUintArray = liftIO . fromTypedArray @Integral lengthu32 fromIntegral indexu32
 
-newtype WebGL = WebGL { unWebGL :: GLES JSM
-                                        GL.WebGLProgram
-                                        GL.WebGLShader
-                                        GL.WebGLTexture
-                                        GL.WebGLUniformLocation
-                                        GL.GLclampf
-                                        GL.GLfloat
-                                        GL.GLenum
-                                        GL.GLuint
-                                        GL.GLint
-                                        GL.GLintptr
-                                        GL.GLbitfield
-                                        GL.GLboolean
-                                        GL.GLsizei
-                                        GL.GLintptr
-                                        GL.ArrayBuffer
-                                        GL.ImageData
-                                        GL.WebGLBuffer
-                                        GL.WebGLFramebuffer
-                                        GL.WebGLRenderbuffer
-                                        GL.Float32Array
-                                        GL.Int32Array
-                                        GL.Uint32Array
-                                        JSVal
+newtype WebGL = WebGL { unWebGL :: GLES JSM                          -- m
+                                        GL.WebGLProgram              -- program
+                                        GL.WebGLShader               -- shader
+                                        GL.WebGLTexture              -- texture
+                                        GL.WebGLUniformLocation      -- uniformlocation
+                                        GL.GLclampf                  -- clampf
+                                        GL.GLfloat                   -- float
+                                        GL.GLenum                    -- enum
+                                        GL.GLuint                    -- uint
+                                        GL.GLint                     -- int
+                                        GL.GLintptr                  -- intptr
+                                        GL.GLboolean                 -- boolean
+                                        GL.GLsizei                   -- sizei
+                                        GL.GLintptr                  -- ptr
+                                        GL.ImageData                 -- imagedata
+                                        GL.WebGLBuffer               -- buffer
+                                        GL.WebGLFramebuffer          -- framebuffer
+                                        GL.WebGLRenderbuffer         -- renderbuffer
+                                        GL.WebGLVertexArrayObjectOES -- vertexarrayobject
+                                        JSVal                        -- extension
                       }
 
 instance IsGLES WebGL where
-  type M                 WebGL = JSM
-  type GLProgram         WebGL = GL.WebGLProgram
-  type GLShader          WebGL = GL.WebGLShader
-  type GLTexture         WebGL = GL.WebGLTexture
-  type GLUniformlocation WebGL = GL.WebGLUniformLocation
-  type GLClampf          WebGL = GL.GLclampf
-  type GLFloat           WebGL = GL.GLfloat
-  type GLEnum            WebGL = GL.GLenum
-  type GLUint            WebGL = GL.GLuint
-  type GLInt             WebGL = GL.GLint
-  type GLIntptr          WebGL = GL.GLintptr
-  type GLBitfield        WebGL = GL.GLbitfield
-  type GLBoolean         WebGL = GL.GLboolean
-  type GLSizei           WebGL = GL.GLsizei
-  type GLPtr             WebGL = GL.GLintptr
-  type GLBufferabledata  WebGL = GL.ArrayBuffer
-  type GLImagedata       WebGL = GL.ImageData
-  type GLBuffer          WebGL = GL.WebGLBuffer
-  type GLFramebuffer     WebGL = GL.WebGLFramebuffer
-  type GLRenderbuffer    WebGL = GL.WebGLRenderbuffer
-  type GLFloatarray      WebGL = GL.Float32Array
-  type GLIntarray        WebGL = GL.Int32Array
-  type GLUintarray       WebGL = GL.Uint32Array
-  type GLExtension       WebGL = JSVal
+  type M                   WebGL = JSM
+  type GLProgram           WebGL = GL.WebGLProgram
+  type GLShader            WebGL = GL.WebGLShader
+  type GLTexture           WebGL = GL.WebGLTexture
+  type GLUniformlocation   WebGL = GL.WebGLUniformLocation
+  type GLClampf            WebGL = GL.GLclampf
+  type GLFloat             WebGL = GL.GLfloat
+  type GLEnum              WebGL = GL.GLenum
+  type GLUint              WebGL = GL.GLuint
+  type GLInt               WebGL = GL.GLint
+  type GLIntptr            WebGL = GL.GLintptr
+  type GLBoolean           WebGL = GL.GLboolean
+  type GLSizei             WebGL = GL.GLsizei
+  type GLPtr               WebGL = GL.GLintptr
+  type GLImagedata         WebGL = GL.ImageData
+  type GLBuffer            WebGL = GL.WebGLBuffer
+  type GLFramebuffer       WebGL = GL.WebGLFramebuffer
+  type GLRenderbuffer      WebGL = GL.WebGLRenderbuffer
+  type GLVertexArrayObject WebGL = GL.WebGLVertexArrayObjectOES
+  type GLExtension         WebGL = JSVal
   gles = unWebGL
 
-webgl :: WebGLRenderingContextBase -> WebGL
-webgl ctx = WebGL GLES{..}
+initWebGL :: WebGLRenderingContextBase -> JSM (Either String WebGL)
+initWebGL ctx = getExtension ctx "OES_vertex_array_object" >>= \case
+  Nothing   -> fail "Could not get OES_vertex_array_object"
+  Just gobj -> toJSVal gobj >>= fromJSVal >>= \case
+    Nothing     -> fail "Could not cast OES_vertex_array_object"
+    Just oesvao -> toJSVal JSNull >>= fromJSVal >>= \case
+      Nothing      -> fail "Could not create a null VAO"
+      Just nullVAO -> return $ Right $ webgl ctx oesvao nullVAO
+
+webgl
+  :: WebGLRenderingContextBase
+  -> OESVertexArrayObject
+  -> WebGLVertexArrayObjectOES
+  -> WebGL
+webgl ctx oesvao nullVAO = WebGL GLES{..}
   where
     true  = True
     false = False
 
+    withFloatArray :: (MonadIO m, Storable a, Real a)
+                    => Vector a -> (Float32Array -> m b) -> m b
     withFloatArray vec f = let vec' = V.map realToFrac vec in
-      liftIO $ V.unsafeWith vec' $ \ptr ->
-        toFloatArrayJS ptr (V.length vec') >>= f
+      liftIO (V.unsafeWith vec' $ \ptr -> toFloatArrayJS ptr (V.length vec')) >>= f
+
+    withIntArray :: (MonadIO m, Storable a, Integral a)
+      => Vector a -> (Int32Array -> m b) -> m b
     withIntArray vec f = let vec' = V.map fromIntegral vec in
-      liftIO $ V.unsafeWith vec' $ \ptr ->
-        toIntArrayJS ptr (V.length vec') >>= f
+      liftIO (V.unsafeWith vec' $ \ptr -> toIntArrayJS ptr (V.length vec')) >>= f
+
+    withUintArray :: (MonadIO m, Storable a, Integral a)
+                   => Vector a -> (Uint32Array -> m b) -> m b
     withUintArray vec f = let vec' = V.map fromIntegral vec in
-      liftIO $ V.unsafeWith vec' $ \ptr ->
-        toUintArrayJS ptr (V.length vec') >>= f
+      liftIO (V.unsafeWith vec' $ \ptr -> toUintArrayJS ptr (V.length vec')) >>= f
 
-    fromFloatArray = fromFloatArray'
-    fromIntArray   = fromIntArray'
-    fromUintArray  = fromUintArray'
+    --fromFloatArray = fromFloatArray'
+    --fromIntArray   = fromIntArray'
+    --fromUintArray  = fromUintArray'
 
+    glCreateVertexArray = GL.createVertexArrayOES oesvao
+    glBindVertexArray   = GL.bindVertexArrayOES   oesvao . Just
+    glIsVertexArray     = GL.isVertexArrayOES     oesvao . Just
+    glDeleteVertexArray = GL.deleteVertexArrayOES oesvao . Just
+    noVertexArray       = nullVAO
 
     glActiveTexture =
       GL.activeTexture ctx
@@ -197,10 +222,27 @@ webgl ctx = WebGL GLES{..}
       GL.blendFunc ctx a b
     glBlendFuncSeparate a b c d =
       GL.blendFuncSeparate ctx a b c d
-    glBufferData target bufferdata usage =
-      GL.bufferData ctx target (Just bufferdata) usage
-    glBufferSubData target offset bufferdata =
-      GL.bufferSubData ctx target offset (Just bufferdata)
+
+    glBufferData :: forall a. (Storable a, ToTypedVector a)
+                 => GL.GLenum -> Vector a -> GL.GLenum -> JSM ()
+    glBufferData target vec usage = case toTypedVector vec of
+      FloatVector dat -> withFloatArray dat $ \(Float32Array val) ->
+        GL.bufferData ctx target (Just $ ArrayBufferView val) usage
+      IntVector dat -> withIntArray dat $ \(Int32Array val) ->
+        GL.bufferData ctx target (Just $ ArrayBufferView val) usage
+      UintVector dat -> withUintArray dat $ \(Uint32Array val) ->
+        GL.bufferData ctx target (Just $ ArrayBufferView val) usage
+
+    glBufferSubData :: forall a. (Storable a, ToTypedVector a)
+                    => GL.GLenum -> GL.GLintptr -> Vector a -> JSM ()
+    glBufferSubData target offset vec = case toTypedVector vec of
+      FloatVector dat -> withFloatArray dat $ \(Float32Array val) ->
+        GL.bufferSubData ctx target offset $ Just $ ArrayBufferView val
+      IntVector dat -> withIntArray dat $ \(Int32Array val) ->
+        GL.bufferSubData ctx target offset $ Just $ ArrayBufferView val
+      UintVector dat -> withUintArray dat $ \(Uint32Array val) ->
+        GL.bufferSubData ctx target offset $ Just $ ArrayBufferView val
+
     glCheckFramebufferStatus target =
       GL.checkFramebufferStatus ctx target
     glClear bitfield =
@@ -475,24 +517,43 @@ webgl ctx = WebGL GLES{..}
            --                ] -> -- GLfloat
            --   GLESGLfloat <$> fromJSValUnchecked jsval
            | otherwise -> return (Nothing, Nothing, Nothing, Nothing, Nothing)
-    glGetUniformfv program location _ =
-      liftJSM . fromJSVal =<< GL.getUniform ctx (Just program) (Just location)
-    glGetUniformiv program location _ =
-      liftJSM . fromJSVal =<< GL.getUniform ctx (Just program) (Just location)
+
+    glGetUniformfv
+      :: forall a. (Storable a, Fractional a)
+      => WebGLProgram -> WebGLUniformLocation -> Int -> JSM (Vector a)
+    glGetUniformfv program location n = do
+      val <- GL.getUniform ctx (Just program) (Just location)
+      vec <- liftJSM (fromFloatArray $ Float32Array val)
+      return $ V.map (realToFrac @Float @a) vec
+    glGetUniformiv
+      :: forall a. (Storable a, Integral a)
+      => WebGLProgram -> WebGLUniformLocation -> Int -> JSM (Vector a)
+    glGetUniformiv program location n = do
+      val <- GL.getUniform ctx (Just program) (Just location)
+      vec <- liftJSM (fromIntArray $ Int32Array val)
+      return $ V.map (fromIntegral @Int @a) vec
     glGetUniformLocation program =
       GL.getUniformLocation ctx (Just program)
-    glGetVertexAttribfv index pname _
-      | pname == GL.CURRENT_VERTEX_ATTRIB =
-        liftJSM . fromJSVal =<< GL.getVertexAttrib ctx index pname
-      | otherwise = return Nothing
-    glGetVertexAttribiv index pname _
+
+    glGetVertexAttribfv
+      :: forall a. (Storable a , Fractional a)
+      => GL.GLuint -> GL.GLenum -> Int -> JSM (Vector a)
+    glGetVertexAttribfv index pname n
+      | pname == GL.CURRENT_VERTEX_ATTRIB = do
+          val <- GL.getVertexAttrib ctx index pname
+          vec <- liftJSM (fromFloatArray $ Float32Array val)
+          return $ V.map (realToFrac @Float @a) vec
+      | otherwise = return V.empty
+
+    glGetVertexAttribiv
+      :: forall a. (Storable a, Integral a)
+      => GL.GLuint -> GL.GLenum -> Int -> JSM (Vector a)
+    glGetVertexAttribiv index pname n
       | pname /= GL.CURRENT_VERTEX_ATTRIB =  do
-        jsval <- GL.getVertexAttrib ctx index pname
-        liftJSM $ fromJSVal jsval >>= \case
-          Nothing    -> return Nothing
-          Just glint ->
-            Just <$> liftIO (V.unsafeWith (V.singleton glint) (`toIntArrayJS` 1))
-      | otherwise = return Nothing
+          val <- GL.getVertexAttrib ctx index pname
+          vec <- liftJSM (fromIntArray $ Int32Array val)
+          return $ V.map (fromIntegral @Int @a) vec
+      | otherwise = return V.empty
     glHint = GL.hint ctx
     glIsBuffer = GL.isBuffer ctx . Just
     glIsContextLost = GL.isContextLost ctx
@@ -547,62 +608,110 @@ webgl ctx = WebGL GLES{..}
       GL.texSubImage2D ctx target level x y format typ $ Just dat
     glUniform1f loc a =
       GL.uniform1f ctx (Just loc) a
-    glUniform1fv loc vec =
-      GL.uniform1fv ctx (Just loc) vec
+
+    glUniform1fv
+      :: forall a. (Real a, Storable a)
+      => WebGLUniformLocation -> Vector a -> JSM ()
+    glUniform1fv loc vec = withFloatArray vec $ GL.uniform1fv ctx (Just loc)
+
     glUniform1i loc i =
       GL.uniform1i ctx (Just loc) i
-    glUniform1iv loc vec =
-      GL.uniform1iv ctx (Just loc) vec
+    glUniform1iv
+      :: forall a. (Integral a, Storable a)
+      => WebGLUniformLocation -> Vector a -> JSM ()
+    glUniform1iv loc vec = withIntArray vec $ GL.uniform1iv ctx (Just loc)
     glUniform2f loc a b =
       GL.uniform2f ctx (Just loc) a b
-    glUniform2fv loc vec =
-      GL.uniform2fv ctx (Just loc) vec
+
+    flatten :: (Storable a, Storable (f a), Foldable f) => Vector (f a) -> Vector a
+    flatten = V.concatMap (V.fromList . toList)
+
+    glUniform2fv
+      :: forall a. (Real a, Storable a)
+      => WebGLUniformLocation -> Vector (V2 a) -> JSM ()
+    glUniform2fv loc vec = withFloatArray (flatten vec) $
+      GL.uniform2fv ctx (Just loc)
     glUniform2i loc a b =
       GL.uniform2i ctx (Just loc) a b
-    glUniform2iv loc vec =
-      GL.uniform2iv ctx (Just loc) vec
+    glUniform2iv
+      :: forall a. (Integral a, Storable a)
+      => WebGLUniformLocation -> Vector (V2 a) -> JSM ()
+    glUniform2iv loc vec = withIntArray (flatten vec) $
+      GL.uniform2iv ctx (Just loc)
     glUniform3f loc a b c =
-      GL.uniform3f ctx (Just loc) a b c
-    glUniform3fv loc vec =
-      GL.uniform3fv ctx (Just loc) vec
+     GL.uniform3f ctx (Just loc) a b c
+    glUniform3fv
+      :: forall a. (Real a, Storable a)
+      => WebGLUniformLocation -> Vector (V3 a) -> JSM ()
+    glUniform3fv loc vec = withFloatArray (flatten vec) $
+      GL.uniform3fv ctx (Just loc)
+
     glUniform3i loc a b c =
       GL.uniform3i ctx (Just loc) a b c
-    glUniform3iv loc vec =
-      GL.uniform3iv ctx (Just loc) vec
+
+    glUniform3iv
+      :: forall a. (Integral a, Storable a)
+      => WebGLUniformLocation -> Vector (V3 a) -> JSM ()
+    glUniform3iv loc vec = withIntArray (flatten vec) $
+      GL.uniform3iv ctx (Just loc)
+
     glUniform4f loc a b c d =
       GL.uniform4f ctx (Just loc) a b c d
-    glUniform4fv loc vec =
-      GL.uniform4fv ctx (Just loc) vec
+
+    glUniform4fv
+      :: forall a. (Real a, Storable a)
+      => WebGLUniformLocation -> Vector (V4 a) -> JSM ()
+    glUniform4fv loc vec = withFloatArray (flatten vec) $
+      GL.uniform4fv ctx (Just loc)
+
     glUniform4i loc a b c d =
       GL.uniform4i ctx (Just loc) a b c d
-    glUniform4iv loc vec =
-      GL.uniform4iv ctx (Just loc) vec
-    glUniformMatrix2fv loc trans vec =
-      GL.uniformMatrix2fv ctx (Just loc) trans vec
-    glUniformMatrix3fv loc trans vec =
-      GL.uniformMatrix3fv ctx (Just loc) trans vec
-    glUniformMatrix4fv loc trans vec =
-      GL.uniformMatrix4fv ctx (Just loc) trans vec
+
+    glUniform4iv
+      :: forall a. (Integral a, Storable a)
+      => WebGLUniformLocation -> Vector (V4 a) -> JSM ()
+    glUniform4iv loc vec = withIntArray (flatten vec) $
+      GL.uniform4iv ctx (Just loc)
+
+    glUniformMatrix2fv
+      :: forall a. (Real a, Storable a)
+      => WebGLUniformLocation -> GL.GLboolean -> Vector (M22 a) -> JSM ()
+    glUniformMatrix2fv loc trans vec = withFloatArray (flatten $ flatten vec) $
+      GL.uniformMatrix2fv ctx (Just loc) trans
+
+    glUniformMatrix3fv
+      :: forall a. (Real a, Storable a)
+      => WebGLUniformLocation -> GL.GLboolean -> Vector (M33 a) -> JSM ()
+    glUniformMatrix3fv loc trans vec = withFloatArray (flatten $ flatten vec) $
+      GL.uniformMatrix3fv ctx (Just loc) trans
+
+    glUniformMatrix4fv
+      :: forall a. (Real a, Storable a)
+      => WebGLUniformLocation -> GL.GLboolean -> Vector (M44 a) -> JSM ()
+    glUniformMatrix4fv loc trans vec = withFloatArray (flatten $ flatten vec) $
+      GL.uniformMatrix4fv ctx (Just loc) trans
+
     glUseProgram program =
       GL.useProgram ctx (Just program)
     glValidateProgram program =
       GL.validateProgram ctx $ Just program
     glVertexAttrib1f loc a =
       GL.vertexAttrib1f ctx loc a
-    glVertexAttrib1fv loc vec =
-      GL.vertexAttrib1fv ctx loc vec
+    --glVertexAttrib1fv :: forall a. (Real a, Storable a) => uint -> Vector a -> m ()
+    --glVertexAttrib1fv loc vec =
+    --  GL.vertexAttrib1fv ctx loc vec
     glVertexAttrib2f loc a b =
       GL.vertexAttrib2f ctx loc a b
-    glVertexAttrib2fv loc vec =
-      GL.vertexAttrib2fv ctx loc vec
+    --glVertexAttrib2fv loc vec =
+    --  GL.vertexAttrib2fv ctx loc vec
     glVertexAttrib3f loc a b c =
       GL.vertexAttrib3f ctx loc a b c
-    glVertexAttrib3fv loc vec =
-      GL.vertexAttrib3fv ctx loc vec
+    --glVertexAttrib3fv loc vec =
+    --  GL.vertexAttrib3fv ctx loc vec
     glVertexAttrib4f loc a b c d =
       GL.vertexAttrib4f ctx loc a b c d
-    glVertexAttrib4fv loc vec =
-      GL.vertexAttrib4fv ctx loc vec
+    --glVertexAttrib4fv loc vec =
+    --  GL.vertexAttrib4fv ctx loc vec
     glVertexAttribPointer index sz typ normed stride n =
       GL.vertexAttribPointer ctx index sz typ normed stride n
     glViewport x y width height =

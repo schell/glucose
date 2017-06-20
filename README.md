@@ -65,7 +65,7 @@ That's it!
 
   - [x] w/ opengl 3   implementation
 
-  - [ ] w/ webgl  ext implementation
+  - [x] w/ webgl  ext implementation
 
   - [ ] w/ webgl  2   implementation
 

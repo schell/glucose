@@ -7,20 +7,15 @@
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Graphics.Glucose where
 
-import           Control.Monad        (forM_)
 import           Data.Bits            (Bits)
-import           Data.Proxy
-import           Data.Vector.Storable
+import           Data.Vector.Storable (Storable (..), Vector)
+import qualified Data.Vector.Storable as V
 import           Data.Word            (Word32)
-
-#ifdef ghcjs_HOST_OS
-import           JSDOM.Types          (ToJSVal)
-#endif
+import           Linear               (M22, M33, M44, V2, V3, V4)
 
 data ShaderPrecisionFormat a = ShaderPrecisionFormat { spfRangeMin  :: a
                                                      , spfRangeMax  :: a
@@ -32,8 +27,27 @@ data ActiveInfo a = ActiveInfo { aiSize :: a
                                , aiName :: String
                                }
 
-class BufferableData m from to where
-  withBufferable :: from -> (to -> m a) -> m a
+data TypedVector = FloatVector (Vector Float)
+                 | IntVector   (Vector Int)
+                 | UintVector  (Vector Word32)
+
+class Storable a => ToTypedVector a where
+  toTypedVector :: Vector a -> TypedVector
+
+instance ToTypedVector Float where
+  toTypedVector = FloatVector
+
+instance ToTypedVector Double where
+  toTypedVector = FloatVector . V.map realToFrac
+
+instance ToTypedVector Int where
+  toTypedVector = IntVector
+
+instance ToTypedVector Word32 where
+  toTypedVector = UintVector
+
+instance ToTypedVector Word where
+  toTypedVector = UintVector . V.map fromIntegral
 
 data GLES
   m
@@ -50,14 +64,10 @@ data GLES
   boolean
   sizei
   ptr
-  bufferabledata
   imagedata
   buffer
   framebuffer
   renderbuffer
-  floatarray
-  intarray
-  uintarray
   vertexarrayobject
   extension =
 
@@ -75,8 +85,12 @@ data GLES
        , glBlendEquationSeparate :: enum -> enum -> m ()
        , glBlendFunc :: enum -> enum -> m ()
        , glBlendFuncSeparate :: enum -> enum -> enum -> enum -> m ()
-       , glBufferData :: forall from. BufferableData m from bufferabledata => enum -> from -> enum -> m ()
-       , glBufferSubData :: forall from. BufferableData m from bufferabledata => enum -> intptr -> from -> m ()
+       , glBufferData
+           :: forall a. (Storable a, ToTypedVector a)
+           => enum -> Vector a -> enum -> m ()
+       , glBufferSubData
+           :: forall a. (Storable a, ToTypedVector a)
+           => enum -> intptr -> Vector a -> m ()
        , glCheckFramebufferStatus :: enum -> m enum
        , glClear :: Word32 -> m ()
        , glClearColor :: clampf -> clampf -> clampf -> clampf -> m ()
@@ -154,12 +168,12 @@ data GLES
           -> sizei
           -- ^ A GLsizei specifying the height of the texture.
           -> m ()
-       , glCreateBuffer ::  m buffer
-       , glCreateFramebuffer ::  m framebuffer
-       , glCreateProgram ::  m program
-       , glCreateRenderbuffer ::  m renderbuffer
+       , glCreateBuffer :: m buffer
+       , glCreateFramebuffer :: m framebuffer
+       , glCreateProgram :: m program
+       , glCreateRenderbuffer :: m renderbuffer
        , glCreateShader :: enum -> m shader
-       , glCreateTexture ::  m texture
+       , glCreateTexture :: m texture
        , glCreateVertexArray :: m vertexarrayobject
        , glCullFace
           :: enum
@@ -255,11 +269,19 @@ data GLES
        , glGetShaderSource :: shader -> m String
        , glGetSupportedExtensions ::  m [String]
        , glGetTexParameter :: enum -> enum -> m (Maybe enum, Maybe boolean, Maybe uint, Maybe int, Maybe float)
-       , glGetUniformfv :: program -> uniformlocation -> floatarray -> m (Maybe floatarray)
-       , glGetUniformiv :: program -> uniformlocation -> intarray -> m (Maybe intarray)
+       , glGetUniformfv
+           :: forall a. (Storable a, Fractional a)
+           => program -> uniformlocation -> Int -> m (Vector a)
+       , glGetUniformiv
+           :: forall a. (Storable a, Integral a)
+           => program -> uniformlocation -> Int -> m (Vector a)
        , glGetUniformLocation :: program -> String -> m uniformlocation
-       , glGetVertexAttribfv :: uint -> enum -> floatarray -> m (Maybe floatarray)
-       , glGetVertexAttribiv :: uint -> enum -> intarray -> m (Maybe intarray)
+       , glGetVertexAttribfv
+           :: forall a. (Storable a , Fractional a)
+           => uint -> enum -> Int -> m (Vector a)
+       , glGetVertexAttribiv
+           :: forall a. (Storable a, Integral a)
+           => uint -> enum -> Int -> m (Vector a)
        , glHint :: enum -> enum -> m ()
        , glIsBuffer :: buffer -> m boolean
        , glIsContextLost ::  m boolean
@@ -296,34 +318,38 @@ data GLES
        --, glTexSubImage2DCanvas :: enum -> int -> int -> int -> enum -> enum -> HTMLCanvasElement -> m ()
        --, glTexSubImage2DVideo :: enum -> int -> int -> int -> enum -> enum -> HTMLVideoElement -> m ()
        , glUniform1f :: uniformlocation -> float -> m ()
-       , glUniform1fv :: uniformlocation -> floatarray -> m ()
+       , glUniform1fv
+           :: forall a. (Real a, Storable a)
+           => uniformlocation -> Vector a -> m ()
        , glUniform1i :: uniformlocation -> int -> m ()
-       , glUniform1iv :: uniformlocation -> intarray -> m ()
+       , glUniform1iv
+           :: forall a. (Integral a, Storable a)
+           => uniformlocation -> Vector a -> m ()
        , glUniform2f :: uniformlocation -> float -> float -> m ()
-       , glUniform2fv :: uniformlocation -> floatarray -> m ()
+       , glUniform2fv :: forall a. (Real a, Storable a) => uniformlocation -> Vector (V2 a) -> m ()
        , glUniform2i :: uniformlocation -> int -> int -> m ()
-       , glUniform2iv :: uniformlocation -> intarray -> m ()
+       , glUniform2iv :: forall a. (Integral a, Storable a) => uniformlocation -> Vector (V2 a) -> m ()
        , glUniform3f :: uniformlocation -> float -> float -> float -> m ()
-       , glUniform3fv :: uniformlocation -> floatarray -> m ()
+       , glUniform3fv :: forall a. (Real a, Storable a) => uniformlocation -> Vector (V3 a) -> m ()
        , glUniform3i :: uniformlocation -> int -> int -> int -> m ()
-       , glUniform3iv :: uniformlocation -> intarray -> m ()
+       , glUniform3iv :: forall a. (Integral a, Storable a) => uniformlocation -> Vector (V3 a) -> m ()
        , glUniform4f :: uniformlocation -> float -> float -> float -> float -> m ()
-       , glUniform4fv :: uniformlocation -> floatarray -> m ()
+       , glUniform4fv :: forall a. (Real a, Storable a) => uniformlocation -> Vector (V4 a) -> m ()
        , glUniform4i :: uniformlocation -> int -> int -> int -> int -> m ()
-       , glUniform4iv :: uniformlocation -> intarray -> m ()
-       , glUniformMatrix2fv :: uniformlocation -> boolean -> floatarray -> m ()
-       , glUniformMatrix3fv :: uniformlocation -> boolean -> floatarray -> m ()
-       , glUniformMatrix4fv :: uniformlocation -> boolean -> floatarray -> m ()
+       , glUniform4iv :: forall a. (Integral a, Storable a) => uniformlocation -> Vector (V4 a) -> m ()
+       , glUniformMatrix2fv :: forall a. (Real a, Storable a) => uniformlocation -> boolean -> Vector (M22 a) -> m ()
+       , glUniformMatrix3fv :: forall a. (Real a, Storable a) => uniformlocation -> boolean -> Vector (M33 a) -> m ()
+       , glUniformMatrix4fv :: forall a. (Real a, Storable a) => uniformlocation -> boolean -> Vector (M44 a) -> m ()
        , glUseProgram :: program -> m ()
        , glValidateProgram :: program -> m ()
        , glVertexAttrib1f :: uint -> float -> m ()
-       , glVertexAttrib1fv :: uint -> floatarray -> m ()
+       --, glVertexAttrib1fv :: forall a. (Real a, Storable a) => uint -> Vector a -> m ()
        , glVertexAttrib2f :: uint -> float -> float -> m ()
-       , glVertexAttrib2fv :: uint -> floatarray -> m ()
+       --, glVertexAttrib2fv :: forall a. (Real a, Storable a) => uint -> Vector a -> m ()
        , glVertexAttrib3f :: uint -> float -> float -> float -> m ()
-       , glVertexAttrib3fv :: uint -> floatarray -> m ()
+       --, glVertexAttrib3fv :: forall a. (Real a, Storable a) => uint -> Vector a -> m ()
        , glVertexAttrib4f :: uint -> float -> float -> float -> float -> m ()
-       , glVertexAttrib4fv :: uint -> floatarray -> m ()
+       --, glVertexAttrib4fv :: forall a. (Real a, Storable a) => uint -> Vector a -> m ()
        , glVertexAttribPointer :: uint -> int -> enum -> boolean -> sizei -> intptr -> m ()
        , glViewport :: int -> int -> sizei -> sizei -> m ()
 
@@ -630,21 +656,13 @@ data GLES
          -- | A false value.
        , false :: boolean
 
-       , withFloatArray :: forall a b. (Storable a, Real a)     => Vector a -> (floatarray -> m b) -> m b
-       , withIntArray   :: forall a b. (Storable a, Integral a) => Vector a -> (intarray   -> m b) -> m b
-       , withUintArray  :: forall a b. (Storable a, Integral a) => Vector a -> (uintarray  -> m b) -> m b
-
-       , fromFloatArray :: floatarray -> m (Vector Float)
-       , fromIntArray   :: intarray   -> m (Vector Int)
-       , fromUintArray  :: uintarray  -> m (Vector Word32)
-
        }
 
 class ( Monad (M a)
       , Eq (GLBoolean a)
       , Num (GLFloat a), Num (GLEnum a), Num (GLClampf a), Num (GLInt a)
       , Num (GLUint a) , Num (GLSizei a), Num (GLIntptr a)
-      , Integral (GLEnum a), Integral (GLBoolean a)
+      , Integral (GLEnum a)
       , Bits (GLEnum a), Show (GLEnum a)
       , Storable (GLFloat a), Storable (GLInt a), Storable (GLUint a)
       ) => IsGLES a where
@@ -662,14 +680,10 @@ class ( Monad (M a)
   type GLBoolean a
   type GLSizei a
   type GLPtr a
-  type GLBufferabledata a
   type GLImagedata a
   type GLBuffer a
   type GLFramebuffer a
   type GLRenderbuffer a
-  type GLFloatarray a
-  type GLIntarray a
-  type GLUintarray a
   type GLVertexArrayObject a
   type GLExtension a
 
@@ -688,13 +702,9 @@ class ( Monad (M a)
                (GLBoolean a)
                (GLSizei a)
                (GLPtr a)
-               (GLBufferabledata a)
                (GLImagedata a)
                (GLBuffer a)
                (GLFramebuffer a)
                (GLRenderbuffer a)
-               (GLFloatarray a)
-               (GLIntarray a)
-               (GLUintarray a)
                (GLVertexArrayObject a)
                (GLExtension a)

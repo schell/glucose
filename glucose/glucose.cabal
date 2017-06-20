@@ -33,6 +33,7 @@ library
                       , jsaddle >= 0.8.3.2
                       , jsaddle >= 0.8.3.2
                       , jsaddle-dom >= 0.8
+                      , linear
                       , mtl
                       , vector
     exposed-modules:    Graphics.Glucose
@@ -40,6 +41,7 @@ library
                       , Graphics.Glucose.Utils
   else
     build-depends:      base >= 4.7 && < 5
+                      , linear
                       , mtl
                       , vector
     if flag(webgl)
