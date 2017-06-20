@@ -1,0 +1,31 @@
+name:                glucose-example-webgl
+version:             0.1.0.0
+-- synopsis:
+-- description:
+homepage:            https://github.com/schell/glucose-example-webgl#readme
+license:             BSD3
+license-file:        LICENSE
+author:              Schell Scivally
+maintainer:          efsubenovex@gmail.com
+copyright:           Copyright: (c) 2017 Schell Scivally
+category:            Game
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+executable glucose-example-webgl-exe
+  hs-source-dirs:      src
+  main-is:             Main.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , ghcjs-dom
+                     , glucose
+                     , glucose-example-shared
+                     , jsaddle
+                     , jsaddle-dom
+                     , lens
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/schell/glucose
