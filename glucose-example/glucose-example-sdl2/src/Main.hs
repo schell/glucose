@@ -43,9 +43,11 @@ areQuit _                   = False
 main :: IO ()
 main = do
   initializeAll
-  let cfg = defaultWindow{ windowOpenGL    = Just defaultOpenGL{glProfile = Core Debug 3 3}
-                         , windowResizable = True
-                         , windowHighDPI   = True
+  let ogl = defaultOpenGL{ glProfile = Core Debug 3 3 }
+      cfg = defaultWindow{ windowOpenGL      = Just ogl
+                         , windowResizable   = True
+                         , windowHighDPI     = False
+                         , windowInitialSize = V2 640 480
                          }
   window <- createWindow "Glucose SDL2 Example" cfg
   void $ glCreateContext window -- from sdl2
@@ -55,10 +57,12 @@ main = do
     Right program -> do
       glClearColor 0 0 0 1
       (vao, projectionLoc, modelviewLoc) <- setup gl program
-      ($ 0) $ fix $ \loop t -> do
+      fix $ \loop -> do
         shouldQuit <- any areQuit <$> pollEvents
-        sz <- glGetDrawableSize window
+        millis     <- ticks
+        sz         <- glGetDrawableSize window
         let V2 w h = fromIntegral <$> sz
+            t      = fromIntegral millis / 1000
         drawScene gl vao projectionLoc modelviewLoc w h t
         glSwapWindow window
-        unless shouldQuit $ loop (t + 0.05)
+        unless shouldQuit loop

@@ -61,6 +61,8 @@ That's it!
 
 ## my list of things that are needed
 
+- [ ] abstract over GLSL to write once, run anywhere
+
 - [x] add VAO extensions to the main GLES type
 
   - [x] w/ opengl 3   implementation

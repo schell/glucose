@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes   #-}
+{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE ExplicitForAll        #-}
 {-# LANGUAGE FlexibleContexts      #-}
@@ -28,6 +29,32 @@ import           Graphics.Glucose
 import           Graphics.Glucose.Utils     (compileProgram, compileShader)
 import           Linear
 
+#ifdef WebGL
+vertexShaderSource :: String
+vertexShaderSource = unlines
+  ["precision mediump float;"
+  ,"attribute vec2 position;"
+  ,"attribute vec4 color;"
+  ,"varying vec4 fcolor;"
+  ,"uniform mat4 projection;"
+  ,"uniform mat4 modelview;"
+  ,"void main () {"
+  ,"  gl_Position = projection * modelview * vec4(position.xy, 0.0, 1.0);"
+  ,"  fcolor = color;"
+  ,"}"
+  ]
+
+fragmentShaderSource :: String
+fragmentShaderSource = unlines
+  ["precision mediump float;"
+  ,"varying vec4 fcolor;"
+  ,"void main () {"
+  ,"  gl_FragColor = fcolor;"
+  ,"}"
+  ]
+
+#else
+
 vertexShaderSource :: String
 vertexShaderSource = unlines
   ["#version 330 core"
@@ -51,6 +78,7 @@ fragmentShaderSource = unlines
   ,"  fragColor = fcolor;"
   ,"}"
   ]
+#endif
 
 positions :: Vector (V2 Float)
 positions =
@@ -118,6 +146,7 @@ setup gl program = do
   clearError gl "setupGeometry.setupColorStuff"
 
   glBindVertexArray noVertexArray
+  clearError gl "setupGeometry.unbind vao"
 
   (vao,,) <$> glGetUniformLocation program "projection"
           <*> glGetUniformLocation program "modelview"
@@ -130,16 +159,22 @@ drawScene
   -> GLUniformlocation a
   -> Float
   -> Float
-  -> Float
+  -> Double
   -> (M a) ()
 drawScene gl vao projectionLoc modelviewLoc w h t = do
   let GLES{..} = gles gl
   glClear $ fromIntegral gl_COLOR_BUFFER_BIT
   glViewport 0 0 (fromIntegral $ floor w) (fromIntegral $ floor h)
-  glUniformMatrix4fv projectionLoc true $ V.singleton $ ortho 0 w h 0 0 1
-  let modelview = mkTransformation (axisAngle (V3 0 0 1) t) (V3 (w/2) (h/2) 0)
-  glUniformMatrix4fv modelviewLoc true $ V.singleton modelview
+  clearError gl "drawScene.clear and viewport"
+  glUniformMatrix4fv projectionLoc false $ V.singleton $ transpose $ ortho 0 w h 0 0 1
+  clearError gl "drawScene.setting projection"
+  let r = pi * realToFrac t
+      modelview = mkTransformation (axisAngle (V3 0 0 1) r) (V3 (w/2) (h/2) 0)
+  glUniformMatrix4fv modelviewLoc false $ V.singleton $ transpose modelview
+  clearError gl "drawScene.setting modelview"
   glBindVertexArray vao
+  clearError gl "drawScene.bind vao"
   glDrawArrays gl_TRIANGLE_FAN 0 4
-  clearError gl "drawScene.glDrawArrays"
+  clearError gl "drawScene.draw arrays"
   glBindVertexArray noVertexArray
+  clearError gl "drawScene.unbind vao"

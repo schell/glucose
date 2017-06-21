@@ -34,6 +34,7 @@ library
 
   if flag(webgl)
      build-depends:  jsaddle, jsaddle-dom
+     cpp-options:    -DWebGL
   else
     if !flag(ghcjs)
       build-depends: sdl2

@@ -159,9 +159,8 @@ initWebGL ctx = getExtension ctx "OES_vertex_array_object" >>= \case
   Nothing   -> fail "Could not get OES_vertex_array_object"
   Just gobj -> toJSVal gobj >>= fromJSVal >>= \case
     Nothing     -> fail "Could not cast OES_vertex_array_object"
-    Just oesvao -> toJSVal JSNull >>= fromJSVal >>= \case
-      Nothing      -> fail "Could not create a null VAO"
-      Just nullVAO -> return $ Right $ webgl ctx oesvao nullVAO
+    Just oesvao ->
+      Right . webgl ctx oesvao . WebGLVertexArrayObjectOES <$> toJSVal JSNull
 
 webgl
   :: WebGLRenderingContextBase

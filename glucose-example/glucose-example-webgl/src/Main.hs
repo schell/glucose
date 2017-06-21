@@ -1,20 +1,18 @@
 {-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
 module Main where
 
-import           Control.Monad                     (forever, msum)
-import           Data.Function                     (fix)
-import           GHCJS.DOM                         (currentDocument, syncPoint)
-import           GHCJS.DOM.Document                (createElement, getBody)
-import           GHCJS.DOM.Element                 (setAttribute)
-import           GHCJS.DOM.HTMLCanvasElement       (getContext)
-import           GHCJS.DOM.Node                    (appendChild_)
-import           GHCJS.DOM.Types                   hiding
-                                                    (WebGLRenderingContextBase)
-import           JSDOM.Types                       (WebGLRenderingContextBase (..))
-import           Language.Javascript.JSaddle.Monad (askJSM, runJSM)
+import           Control.Monad               (msum)
+import           Data.Function               (fix)
+import           GHCJS.DOM                   (currentDocument,
+                                              nextAnimationFrame)
+import           GHCJS.DOM.Document          (createElement, getBody)
+import           GHCJS.DOM.Element           (setAttribute)
+import           GHCJS.DOM.HTMLCanvasElement (getContext)
+import           GHCJS.DOM.Node              (appendChild_)
+import           GHCJS.DOM.Types             hiding (WebGLRenderingContextBase)
+import           JSDOM.Types                 (WebGLRenderingContextBase (..))
 
 import           Graphics.Glucose
 import           Graphics.Glucose.Shared
@@ -44,5 +42,5 @@ main = do
             glClearColor 0 0 0 1
             (vao, projectionLoc, modelviewLoc) <- setup gl program
             ($ 0) $ fix $ \loop t -> do
-              drawScene gl vao projectionLoc modelviewLoc 640 480 t
-              loop $ t + 0.05
+              drawScene gl vao projectionLoc modelviewLoc 640 480 $ t / 1000
+              nextAnimationFrame loop
