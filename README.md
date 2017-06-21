@@ -74,3 +74,9 @@ That's it!
 - [ ] add `TypedArray` instances to `jsaddle` to make marshalling easier, or
       convert all array types to
       `(Foldable f, Functor f, Storable a) => Vector (f a)`.
+
+## caveats
+Shaders still need to be written with a specific platform in mind. There are slight
+differences between shaders in WebGL and OpenGL 3.3 (which the SDL2 backend targets).
+Some kind of imperative eDSL is planned, but in the meantime you can always use a 
+tech like [andromeda](https://github.com/jaredloomis/andromeda/).
