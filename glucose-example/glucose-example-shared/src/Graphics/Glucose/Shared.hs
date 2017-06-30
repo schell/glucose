@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes   #-}
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE ConstraintKinds       #-}
+{-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE ExplicitForAll        #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE GADTs                 #-}
@@ -10,6 +11,7 @@
 {-# LANGUAGE RecordWildCards       #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE TypeFamilies          #-}
 
 module Graphics.Glucose.Shared
@@ -18,66 +20,26 @@ module Graphics.Glucose.Shared
     , drawScene
     ) where
 
-import           Control.Monad.IO.Class     (MonadIO (..))
-import           Control.Monad.Trans        (lift)
-import           Control.Monad.Trans.Either (EitherT (..), runEitherT)
-import           Data.Foldable              (Foldable)
-import qualified Data.Foldable              as F
-import           Data.Vector.Storable       (Storable, Vector)
-import qualified Data.Vector.Storable       as V
+import           Control.Monad.IO.Class          (MonadIO (..))
+import           Control.Monad.Trans             (lift)
+import           Control.Monad.Trans.Either      (EitherT (..), runEitherT)
+import           Data.Foldable                   (Foldable)
+import qualified Data.Foldable                   as F
+import           Data.Vector.Storable            (Storable, Vector)
+import qualified Data.Vector.Storable            as V
 import           Graphics.Glucose
-import           Graphics.Glucose.Utils     (compileProgram, compileShader)
+import           Graphics.Glucose.Shared.Shaders (fragment, vertex)
+import           Graphics.Glucose.Utils          (compileProgram, compileShader)
+import           Graphics.Gristle                (GLContext (..), getCtx,
+                                                  ixShaderSrc)
 import           Linear
 
+
+
 #ifdef WebGL
-vertexShaderSource :: String
-vertexShaderSource = unlines
-  ["precision mediump float;"
-  ,"attribute vec2 position;"
-  ,"attribute vec4 color;"
-  ,"varying vec4 fcolor;"
-  ,"uniform mat4 projection;"
-  ,"uniform mat4 modelview;"
-  ,"void main () {"
-  ,"  gl_Position = projection * modelview * vec4(position.xy, 0.0, 1.0);"
-  ,"  fcolor = color;"
-  ,"}"
-  ]
-
-fragmentShaderSource :: String
-fragmentShaderSource = unlines
-  ["precision mediump float;"
-  ,"varying vec4 fcolor;"
-  ,"void main () {"
-  ,"  gl_FragColor = fcolor;"
-  ,"}"
-  ]
-
+type MyGLContext = 'WebGLContext
 #else
-
-vertexShaderSource :: String
-vertexShaderSource = unlines
-  ["#version 330 core"
-  ,"in vec2 position;"
-  ,"in vec4 color;"
-  ,"out vec4 fcolor;"
-  ,"uniform mat4 projection;"
-  ,"uniform mat4 modelview;"
-  ,"void main () {"
-  ,"  gl_Position = projection * modelview * vec4(position.xy, 0.0, 1.0);"
-  ,"  fcolor = color;"
-  ,"}"
-  ]
-
-fragmentShaderSource :: String
-fragmentShaderSource = unlines
-  ["#version 330 core"
-  ,"in vec4 fcolor;"
-  ,"out vec4 fragColor;"
-  ,"void main () {"
-  ,"  fragColor = fcolor;"
-  ,"}"
-  ]
+type MyGLContext = 'OpenGLContext
 #endif
 
 positions :: Vector (V2 Float)
@@ -99,13 +61,22 @@ clearError gl msg = do
        | err == gl_INVALID_OPERATION -> Just "INVALID_OPERATION"
        | otherwise                   -> Just $ show err
 
-makeProgram :: forall a. IsGLES a => a -> (M a) (Either String (GLProgram a))
+makeProgram
+  :: forall a. (MonadIO (M a), IsGLES a)
+  => a
+  -> (M a) (Either String (GLProgram a))
 makeProgram gl = do
   let GLES{..} = gles gl
   --glEnable gl_DEPTH_TEST
   runEitherT $ do
-    vshader <- hoist $ compileShader gl gl_VERTEX_SHADER vertexShaderSource
-    fshader <- hoist $ compileShader gl gl_FRAGMENT_SHADER fragmentShaderSource
+    vSrc0 <- hoist $ return $ ixShaderSrc @MyGLContext vertex
+    fSrc0 <- hoist $ return $ ixShaderSrc @MyGLContext fragment
+    let srcs@[vSrc1, fSrc1] = case getCtx @MyGLContext of
+          OpenGLContext -> map ("#version 330 core\n" ++) [vSrc0, fSrc0]
+          WebGLContext  -> [vSrc0, fSrc0]
+    liftIO $ print srcs
+    vshader <- hoist $ compileShader gl gl_VERTEX_SHADER vSrc1
+    fshader <- hoist $ compileShader gl gl_FRAGMENT_SHADER fSrc1
     program <- hoist $ compileProgram gl [(0, "position"), (1, "color")] [vshader, fshader]
     lift $ do
       glUseProgram program

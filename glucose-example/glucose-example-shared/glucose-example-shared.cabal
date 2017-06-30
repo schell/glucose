@@ -25,9 +25,11 @@ flag ghcjs
 library
   hs-source-dirs:      src
   exposed-modules:     Graphics.Glucose.Shared
+  other-modules:       Graphics.Glucose.Shared.Shaders
   build-depends:       base >= 4.7 && < 5
                      , either
                      , glucose
+                     , gristle
                      , linear
                      , mtl
                      , vector

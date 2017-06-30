@@ -1,269 +1,405 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE RebindableSyntax    #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TemplateHaskell     #-}
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE TypeInType          #-}
-{-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE AllowAmbiguousTypes   #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PolyKinds             #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE RebindableSyntax      #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE TypeApplications      #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeInType            #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE UndecidableInstances  #-}
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# OPTIONS_GHC -fno-warn-orphans            #-}
 {-# OPTIONS_GHC -fprint-explicit-kinds #-}
-module Graphics.Gristle where
+module Graphics.Gristle
+  ( module Graphics.Gristle
+  , KnownSymbol
+  ) where
 
 import           Control.Arrow                  ((&&&))
 import           Control.Monad.Indexed
-import           Data.Either                    (lefts, rights)
+import           Data.List                      (intercalate)
+import           Data.Promotion.Prelude
 import           Data.Promotion.Prelude.List    ((:++))
-import           Data.Singletons.TH
+import           Data.Promotion.TH
+import           Data.Ratio                     (denominator, numerator)
 import           Data.Singletons.TypeLits
-import           Language.GLSL
+import           Language.GLSL                  (TranslationUnit (..), parse)
 import           Prelude                        hiding (return, (>>), (>>=))
-import           Text.Parsec.Error              (Message (..), errorMessages,
-                                                 messageString)
 import           Text.PrettyPrint.HughesPJClass
 
-toSrc :: Pretty a => a -> String
-toSrc = show . pPrint
+data Uniform typ name = Uniform
+data In typ name = In
+data Out typ name = Out
 
---data Vec2 = Vec2
---data Vec4 = Vec4
---data Mat4 = Mat4
---
---instance ToShaderDecl Vec2 where
---  shaderDecl = ["vec2"]
---
---instance ToShaderDecl Vec4 where
---  shaderDecl = ["vec4"]
---
---instance ToShaderDecl Mat4 where
---  shaderDecl = ["mat4"]
---
-data Uniform_ typ name = Uniform_
-data In_ typ name = In_
-data Out_ typ name = Out_
---
---class ToShaderDecl a where
---  shaderDecl :: [String]
---
---instance KnownSymbol a => ToShaderDecl a where
---  shaderDecl = [symbolVal (Proxy @a)]
---
---instance KnownSymbol a => ToShaderDecl (Proxy a) where
---  shaderDecl = [symbolVal (Proxy @a)]
---
---instance ToShaderDecl () where
---  shaderDecl = []
---
---globalDecl :: String -> String -> String -> [String]
---globalDecl k t n = [unwords [k, t, n ++ ";\n"]]
---
---instance (ToShaderDecl typ, ToShaderDecl name) => ToShaderDecl (Uniform_ typ name) where
---  shaderDecl = globalDecl "uniform" (concat $ shaderDecl @typ) (concat $ shaderDecl @name)
---
---instance (ToShaderDecl typ, ToShaderDecl name) => ToShaderDecl (In_ typ name) where
---  shaderDecl = globalDecl "in" (concat $ shaderDecl @typ) (concat $ shaderDecl @name)
---
---instance (ToShaderDecl typ, ToShaderDecl name) => ToShaderDecl (Out_ typ name) where
---  shaderDecl = globalDecl "out" (concat $ shaderDecl @typ) (concat $ shaderDecl @name)
---
-data Function typ name params body = Function
---
---instance (ToShaderDecl typ, ToShaderDecl name, ToShaderDecl params, ToShaderDecl body)
---  => ToShaderDecl (Function typ name params body) where
---  shaderDecl = [ unwords $ map concat [ shaderDecl @typ
---                                      , shaderDecl @name
---                                      , shaderDecl @params
---                                      , ["{"]
---                                      ]
---               , concat (shaderDecl @body) ++ ""
---               , "}"
---               ]
---
---instance ToShaderDecl '[] where
---  shaderDecl = []
---
---instance (ToShaderDecl t, ToShaderDecl ts) => ToShaderDecl (t ': ts) where
---  shaderDecl = [unwords $ map concat [shaderDecl @t, shaderDecl @ts]]
---
-data Shader i j n where
-  ShNxt :: [Either [Message] [ExternalDeclaration]] -> n -> Shader i j n
-  ShAdd :: [Either [Message] [ExternalDeclaration]] -> t -> n -> Shader i (i :++ '[t]) n
+data IxShader ctx i j n where
+  ShNxt :: [String] -> n -> IxShader ctx i j n
+  ShAcc :: [String] -> t -> n -> IxShader ctx i (i :++ '[t]) n
 
---instance ToShaderDecl j => ToShaderDecl (Shader i j n) where
---  shaderDecl = [unlines $ shaderDecl @j]
---
-unN :: Shader i j n -> n
+unN :: IxShader ctx i j n -> n
 unN = \case
   (ShNxt _ n) -> n
-  (ShAdd _ _ n) -> n
+  (ShAcc _ _ n) -> n
 
-unDecl :: Shader i j n -> [Either [Message] [ExternalDeclaration]]
+unDecl :: IxShader ctx i j n -> [String]
 unDecl (ShNxt d _)   = d
-unDecl (ShAdd d _ _) = d
+unDecl (ShAcc d _ _) = d
 
-instance IxFunctor Shader where
+instance IxFunctor (IxShader ctx) where
   imap f sh = ShNxt (unDecl sh) $ f (unN sh)
 
-instance IxPointed Shader where
+instance IxPointed (IxShader ctx) where
   ireturn = ShNxt []
 
-instance IxApplicative Shader where
+instance IxApplicative (IxShader ctx) where
   iap mf mx = ShNxt (unDecl mf ++ unDecl mx) $ unN mf $ unN mx
 
-instance IxMonad Shader where
+instance IxMonad (IxShader ctx) where
   ibind amb ma =
     let (dsa, a) = unDecl &&& unN $ ma
         (dsb, b) = unDecl &&& unN $ amb a
     in ShNxt (dsa ++ dsb) b
 
-data SocketMode = SocketRead
-                | SocketWrite
-                | SocketReadWrite
-
 -- | A socket is simply a C-like "variable". It's a spot where you can read,
 -- write or read and write to/from.
-newtype Socket typ mode = Socket String
+newtype Socket typ read write = Socket String deriving (Show)
+type SocketReadOnly  typ = Socket typ 'True  'False
+type SocketWriteOnly typ = Socket typ 'False 'True
+type SocketReadWrite typ = Socket typ 'True  'True
 
-declarations :: String -> [Either [Message] [ExternalDeclaration]]
-declarations str = case parse str of
-  Left err                   -> [Left $ errorMessages err]
-  Right (TranslationUnit ds) -> [Right ds]
+-- | Construct a new socket.
+socket
+  :: forall typ (read :: Bool) (write :: Bool).
+     String
+  -> Socket typ read write
+socket = Socket
+
+-- | Some glsl evaluation contexts. This is used to choose alternate syntax in
+-- cases where shader code differs between contexts, for example the @in@ keyword
+-- is not available on glsl bound for a webgl context, and should be replaced
+-- with @attribute@.
+data GLContext = OpenGLContext | WebGLContext
+
+-- | An easy way to get the term level value of a type of kind 'GLContext'.
+class HasContext (a :: GLContext) where
+  getCtx :: GLContext
+instance HasContext 'OpenGLContext where
+  getCtx = OpenGLContext
+instance HasContext 'WebGLContext where
+  getCtx = WebGLContext
 
 typeAndName
   :: forall typ name. (KnownSymbol typ, KnownSymbol name) => (String, String)
 typeAndName = (symbolVal $ Proxy @typ, symbolVal $ Proxy @name)
 
--- | Does three things - adds a uniform input into the global type of the shader,
--- encodes one or more @ExternalDeclaration@s and returns a socket/slot of the
--- uniform.
+-- | Does three things - appends a type to the IxMonad @j@, encodes one or more
+-- lines of shader code and returns something. This is the main entry point for
+-- any shader building code, and also an easy escape hatch.
+acc
+  :: forall typ a i ctx. String
+  -> typ
+  -> a
+  -> IxShader ctx i (i :++ '[typ]) a
+acc dec = ShAcc (lines dec)
+
+nxt
+  :: forall i a ctx.
+     String
+  -> a
+  -> IxShader ctx i i a
+nxt dec = ShNxt (lines dec)
+
+nxt_ :: forall i ctx. String -> IxShader ctx i i ()
+nxt_ dec = nxt dec ()
+
+sub
+  :: forall i j a ctx.
+     String
+  -> String
+  -> IxShader ctx i j a
+  -> IxShader ctx i j a
+sub open close sh = do
+  nxt open ()
+  a <- sh
+  nxt close ()
+  return a
+
+sub_
+  :: forall i j a ctx.
+     String
+  -> String
+  -> IxShader ctx i j a
+  -> IxShader ctx i j ()
+sub_ open close sh = sub open close sh >> return ()
+
 uniform_
-  :: forall typ name ts. (KnownSymbol typ, KnownSymbol name)
-  => Shader ts (ts :++ '[Uniform_ typ name]) (Socket typ 'SocketRead)
-uniform_ = ShAdd decls (Uniform_ @typ @name) $ Socket nameVal
+  :: forall typ name ts ctx. (KnownSymbol typ, KnownSymbol name)
+  => IxShader ctx ts (ts :++ '[Uniform typ name]) (SocketReadOnly typ)
+uniform_ = acc decls (Uniform @typ @name) $ Socket nameVal
   where
     (typeVal, nameVal) = typeAndName @typ @name
-    decls = declarations $ unwords ["uniform", typeVal, nameVal, ";"]
+    decls = unwords ["uniform", typeVal, nameVal, ";"]
 
 in_
-  :: forall typ name ts. (KnownSymbol typ, KnownSymbol name)
-  => Shader ts (ts :++ '[In_ typ name]) (Socket typ 'SocketRead)
-in_ = ShAdd decls (In_ @typ @name) $ Socket nameVal
+  :: forall typ name ts ctx. (HasContext ctx, KnownSymbol typ, KnownSymbol name)
+  => IxShader ctx ts (ts :++ '[In typ name]) (SocketReadOnly typ)
+in_ = acc decls (In @typ @name) $ Socket nameVal
   where
     (typeVal, nameVal) = typeAndName @typ @name
-    decls = declarations $ unwords ["in", typeVal, nameVal, ";"]
+    dec   = case getCtx @ctx of
+      OpenGLContext -> "in"
+      WebGLContext  -> "attribute"
+    decls = unwords [dec, typeVal, nameVal, ";"]
 
 out_
-  :: forall typ name ts. (KnownSymbol typ, KnownSymbol name)
-  => Shader ts (ts :++ '[Out_ typ name]) (Socket typ 'SocketWrite)
-out_ = ShAdd decls (Out_ @typ @name) $ Socket nameVal
+  :: forall typ name ts ctx. (HasContext ctx, KnownSymbol typ, KnownSymbol name)
+  => IxShader ctx ts (ts :++ '[Out typ name]) (SocketWriteOnly typ)
+out_ = acc decls (Out @typ @name) $ Socket nameVal
   where
     (typeVal, nameVal) = typeAndName @typ @name
-    decls = declarations $ unwords ["out", typeVal, nameVal, ";"]
+    dec   = case getCtx @ctx of
+      OpenGLContext -> "out"
+      WebGLContext  -> "varying"
+    decls = unwords [dec, typeVal, nameVal, ";"]
 
 gl_Position
-  :: forall ts.
-  Shader ts (ts :++ '[Out_ "vec4" "gl_Position"]) (Socket "vec4" 'SocketWrite)
-gl_Position = ShAdd [] (Out_ @"vec4" @"gl_Position") $ Socket "gl_Position"
+  :: forall ts ctx.
+  IxShader ctx ts (ts :++ '[Out "vec4" "gl_Position"]) (SocketWriteOnly "vec4")
+gl_Position = acc [] (Out @"vec4" @"gl_Position") $ Socket "gl_Position"
 
---function_
---  :: forall typ name params body ts.
---  typ -> name -> params -> body ->
---  Shader ts (ts :++ '[Function typ name params body]) (Function typ name params body)
---function_ _ _ _ _ = ShAdd Function
+type family GLFragName (a :: GLContext) where
+  GLFragName 'OpenGLContext = "fragColor"
+  GLFragName 'WebGLContext  = "gl_FragColor"
 
-type Main body = Function "void" "main" () body
+gl_FragColor
+  :: forall ts ctx. (HasContext ctx, KnownSymbol (GLFragName ctx))
+  => IxShader ctx ts (ts :++ '[Out "vec4" (GLFragName ctx)]) (SocketWriteOnly "vec4")
+gl_FragColor = acc decls (Out @"vec4" @(GLFragName ctx)) $ Socket nameVal
+  where nameVal = symbolVal $ Proxy @(GLFragName ctx)
+        decls  = case getCtx @ctx of
+          OpenGLContext -> unwords ["out", "vec4", nameVal, ";"]
+          _             -> []
 
---main_ :: () -> body -> Shader ts (ts :++ '[Main body]) (Main body)
---main_ () _ = ShAdd Function
-
-(>>=) :: forall i j k a b. Shader i j a -> (a -> Shader j k b) -> Shader i k b
+(>>=) :: forall i j k a b ctx. IxShader ctx i j a -> (a -> IxShader ctx j k b) -> IxShader ctx i k b
 a >>= b = a >>>= b
 
-return :: forall a i. a -> Shader i i a
+return :: forall a i ctx. a -> IxShader ctx i i a
 return = ireturn
 
-(>>) :: forall i j a k b. Shader i j a -> Shader j k b -> Shader i k b
+(>>) :: forall i j a k b ctx. IxShader ctx i j a -> IxShader ctx j k b -> IxShader ctx i k b
 a >> b = a >>>= const b
 
-void :: Shader i k a -> Shader i k ()
+void :: IxShader ctx i k a -> IxShader ctx i k ()
 void ma = ma >> return ()
 
-type VertexShader = Shader '[]
+infixr 1 .=
+(.=)
+  :: forall typ w r i ctx.
+     Socket typ r 'True
+  -> Socket typ 'True w
+  -> IxShader ctx i i ()
+(.=) (Socket a) (Socket b) = nxt_ $ unwords [a, "=", b, ";"]
 
-vertex :: Shader '[] '[ Out_     "vec4" "gl_Position"
-                      , In_      "vec2" "position"
-                      , In_      "vec4" "color"
-                      , Out_     "vec4" "fcolor"
-                      , Uniform_ "mat4" "projection"
-                      , Uniform_ "mat4" "modelview"
-                      ] ()
-vertex = do
-  glPos  <- gl_Position
+$(promoteOnly [d|
+  toColRow :: Symbol -> (Nat, Nat)
+  toColRow "float"  = (0, 0)
+  toColRow "int"    = (0, 0)
+  toColRow "uint"   = (0, 0)
+  toColRow "vec2"   = (2, 1)
+  toColRow "vec3"   = (3, 1)
+  toColRow "vec4"   = (4, 1)
+  toColRow "bvec2"  = (2, 1)
+  toColRow "bvec3"  = (3, 1)
+  toColRow "bvec4"  = (4, 1)
+  toColRow "ivec2"  = (2, 1)
+  toColRow "ivec3"  = (3, 1)
+  toColRow "ivec4"  = (4, 1)
+  toColRow "uvec2"  = (2, 1)
+  toColRow "uvec3"  = (3, 1)
+  toColRow "uvec4"  = (4, 1)
+  toColRow "mat2"   = (2, 2)
+  toColRow "mat2x2" = (2, 2)
+  toColRow "mat2x3" = (2, 3)
+  toColRow "mat2x4" = (2, 4)
+  toColRow "mat3"   = (3, 3)
+  toColRow "mat3x2" = (2, 2)
+  toColRow "mat3x3" = (3, 3)
+  toColRow "mat3x4" = (3, 4)
+  toColRow "mat4"   = (4, 4)
+  toColRow "mat4x2" = (4, 2)
+  toColRow "mat4x3" = (4, 3)
+  toColRow "mat4x4" = (4, 4)
 
-  pos    <- in_ @"vec2" @"position"
-  color  <- in_ @"vec4" @"color"
+  showInt :: Nat -> Symbol
+  showInt 0 = "0"
+  showInt 1 = "1"
+  showInt 2 = "2"
+  showInt 3 = "3"
+  showInt 4 = "4"
+  showInt 5 = error "showInt only goes to 5, lol"
 
-  fcolor <- out_ @"vec4" @"fcolor"
+  matFromColRow :: (Nat, Nat) -> Symbol
+  matFromColRow (2, 2) = "mat2"
+  matFromColRow (2, 3) = "mat2x3"
+  matFromColRow (2, 4) = "mat2x4"
+  matFromColRow (3, 3) = "mat3"
+  matFromColRow (3, 2) = "mat3x2"
+  matFromColRow (3, 4) = "mat3x4"
+  matFromColRow (4, 4) = "mat4"
+  matFromColRow (4, 2) = "mat4x2"
+  matFromColRow (4, 3) = "mat4x3"
+  matFromColRow _      = error "unsupported matrix column or row"
 
-  proj   <- uniform_ @"mat4" @"projection"
-  modl   <- uniform_ @"mat4" @"modelview"
-  return ()
+  multiply :: Symbol -> Symbol -> Symbol
+  multiply a b
+    | a == b = a
+    | otherwise = b
+    | (0,0) <- toColRow a = b
+    | (0,0) <- toColRow b = a
+    | (_,1) <- toColRow a
+    , (_,1) <- toColRow b
+    , True  <- a /= b =
+        error $ concat ["no operation '*' exists for ", a, " and ", b]
+    | otherwise = case (toColRow a, toColRow b) of
+      ((ca, ra), (cb, rb)) ->
+        case ra == 1 || rb == 1 of
+        True -> case ca == cb of
+            True -> a
+            False -> error $ concat ["no operation '*' exists for ", a, " and ", b]
+        False -> matFromColRow (ca, rb)
+ |])
 
---  void $ main_ () $ Proxy @"functionbody;\n"
---
-shaderSource
-  :: Shader '[] j a
-  -> Either String String
-shaderSource sh = case (lefts $ unDecl sh, rights $ unDecl sh) of
-  ( [], decls) -> Right $ toSrc $ TranslationUnit $ concat decls
-  (ers,     _) -> Left $ unlines $ map messageString $ concat ers
---
---testSrc :: String
---testSrc = shaderSource $ start >> vertex
---  where start :: Shader '[] '[] ()
---        start = return ()
-{-
-> putStrLn testSrc
- out vec4 gl_Position;
- in vec2 position;
- in vec4 color;
- out vec4 fcolor;
- uniform mat4 projection;
- uniform mat4 modelview;
- void main {
- functionbody;
+infixl 7 .*
+(.*)
+  :: forall w3 typ1 typ2 w1 w2.
+     Socket typ1 'True w1
+  -> Socket typ2 'True w2
+  -> Socket (Multiply typ1 typ2) 'True w3
+(.*) (Socket a) (Socket b) = Socket $ unwords [a, "*", b]
 
- }
--}
---------------------------------------------------------------------------------
--- Goal: write shaders in haskell and make it look as close as possible to real
--- glsl
---------------------------------------------------------------------------------
---vertex :: VertexShader '[Vec2, Vec4] '[Mat4, Mat4] '[Vec4]
---vertex = do
---  glPos  <- gl_Position
---
---  pos    <- in_  vec2 "position"
---  color  <- in_  vec4 "color"
---
---  fcolor <- out_ vec4 "fcolor"
---
---  proj   <- uniform_ mat4 "projection"
---  modl   <- uniform_ mat4 "modelview"
---  main () $ do
---    fcolor $= color
---    glPos  $= projection * modelview * mkVec4 (pos^.x) (pos^.y) 0 1
---
---fragment :: FragmentShader '[Vec4] '[] '[Vec4]
---fragment = do
---  version_ 3 3 0 core
---  fcolor <- in_ Vec4 "fcolor"
---  glFrag <- gl_FragColor
---  main () $ glFrag $= fcolor
+class IsR1 (a :: Symbol) where
+  type ToR1 a :: Symbol
+instance IsR1 "vec2" where
+  type ToR1 "vec2" = "float"
+instance IsR1 "vec3" where
+  type ToR1 "vec3" = "float"
+instance IsR1 "vec4" where
+  type ToR1 "vec4" = "float"
+instance IsR1 "ivec2" where
+  type ToR1 "ivec2" = "int"
+instance IsR1 "ivec3" where
+  type ToR1 "ivec3" = "int"
+instance IsR1 "ivec4" where
+  type ToR1 "ivec4" = "int"
+instance IsR1 "bvec2" where
+  type ToR1 "bvec2" = "bool"
+instance IsR1 "bvec3" where
+  type ToR1 "bvec3" = "bool"
+instance IsR1 "bvec4" where
+  type ToR1 "bvec4" = "bool"
+instance IsR1 "uvec2" where
+  type ToR1 "uvec2" = "uint"
+instance IsR1 "uvec3" where
+  type ToR1 "uvec3" = "uint"
+instance IsR1 "uvec4" where
+  type ToR1 "uvec4" = "uint"
+
+x :: IsR1 typ => Socket typ 'True w -> Socket (ToR1 typ) 'True w
+x (Socket s) = Socket $ s ++ ".x"
+
+class IsR2 (a :: Symbol) where
+  type ToR2 a :: Symbol
+instance IsR2 "vec2" where
+  type ToR2 "vec2" = "float"
+instance IsR2 "vec3" where
+  type ToR2 "vec3" = "float"
+instance IsR2 "vec4" where
+  type ToR2 "vec4" = "float"
+instance IsR2 "ivec2" where
+  type ToR2 "ivec2" = "int"
+instance IsR2 "ivec3" where
+  type ToR2 "ivec3" = "int"
+instance IsR2 "ivec4" where
+  type ToR2 "ivec4" = "int"
+instance IsR2 "bvec2" where
+  type ToR2 "bvec2" = "bool"
+instance IsR2 "bvec3" where
+  type ToR2 "bvec3" = "bool"
+instance IsR2 "bvec4" where
+  type ToR2 "bvec4" = "bool"
+instance IsR2 "uvec2" where
+  type ToR2 "uvec2" = "uint"
+instance IsR2 "uvec3" where
+  type ToR2 "uvec3" = "uint"
+instance IsR2 "uvec4" where
+  type ToR2 "uvec4" = "uint"
+
+y :: IsR2 typ => Socket typ 'True w -> Socket (ToR2 typ) 'True w
+y (Socket s) = Socket $ s ++ ".y"
+
+f :: Float -> SocketReadOnly "float"
+f = Socket . show
+
+dbl :: Double -> SocketReadOnly "float"
+dbl = Socket . show
+
+int :: Int -> SocketReadOnly "int"
+int = Socket . show
+
+uint :: Word -> SocketReadOnly "uint"
+uint = Socket . show
+
+mkvec4
+  :: Socket "float" 'True w1
+  -> Socket "float" 'True w2
+  -> Socket "float" 'True w3
+  -> Socket "float" 'True w4
+  -> Socket "vec4" 'True 'False
+mkvec4 (Socket a) (Socket b) (Socket c) (Socket d) =
+  Socket $ "vec4(" ++ intercalate "," [a, b, c, d] ++ ")"
+
+class IsNumValue typ
+instance IsNumValue "float"
+instance IsNumValue "int"
+instance IsNumValue "uint"
+
+instance IsNumValue typ => Num (SocketReadOnly typ) where
+  (+) (Socket a) (Socket b) = Socket $ unwords [a, "+", b]
+  (-) (Socket a) (Socket b) = Socket $ unwords [a, "-", b]
+  (*) (Socket a) (Socket b) = Socket $ unwords [a, "*", b]
+  negate (Socket a) = Socket $ concat ["(-", a, ")"]
+  abs (Socket a)    = Socket $ concat ["abs(", a, ")"]
+  signum (Socket a) = Socket $ concat ["sign(", a, ")"]
+  fromInteger = Socket . show . (fromInteger :: Integer -> Float)
+
+instance Fractional (SocketReadOnly "float") where
+  fromRational a = Socket $ show $
+    (fromIntegral (numerator a) :: Float) / fromIntegral (denominator a)
+  (/) (Socket a) (Socket b) = Socket $ concat [a, "/", b]
+
+main_ = sub "void main() {" "}"
+
+fromIxShader :: IxShader ctx '[] j a -> Either String TranslationUnit
+fromIxShader = showLeft . parse . unlines . unDecl
+  where showLeft = \case
+          Left err  -> Left $ show err
+          Right ast -> Right ast
+
+toSrc :: Pretty a => a -> String
+toSrc = show . pPrint
+
+onlySrc :: IxShader ctx i j a -> String
+onlySrc = unlines . unDecl
+
+ixShaderSrc :: IxShader ctx '[] j a -> Either String String
+ixShaderSrc = fmap toSrc . fromIxShader
+
+putSrcLn :: forall ctx j a. IxShader ctx '[] j a -> IO ()
+putSrcLn = either putStrLn (putStrLn . toSrc) . fromIxShader
