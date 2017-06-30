@@ -1,6 +1,6 @@
 # glucose and gristle
 `glucose` and `gristle` abstract over opengl/webgl and glsl, respectively.
-`glucose`` is the gl portion and `gristle` is the glsl portion. Together they
+`glucose` is the gl portion and `gristle` is the glsl portion. Together they
 allow write once, run "anywhere" opengl code.
 
 ## glucose
