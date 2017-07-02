@@ -394,19 +394,48 @@ instance IsNumValue "float"
 instance IsNumValue "int"
 instance IsNumValue "uint"
 
-instance IsNumValue typ => Num (SocketReadOnly typ) where
-  (+) (Socket a) (Socket b) = Socket $ unwords [a, "+", b]
-  (-) (Socket a) (Socket b) = Socket $ unwords [a, "-", b]
-  (*) (Socket a) (Socket b) = Socket $ unwords [a, "*", b]
+call :: forall (t :: Symbol). String -> SocketReadOnly t -> SocketReadOnly t
+call fncstr (Socket a) = Socket $ concat [fncstr, "(", a, ")"]
+
+call2 :: forall (t :: Symbol). String -> SocketReadOnly t -> SocketReadOnly t -> SocketReadOnly t
+call2 fncstr (Socket a) (Socket b) = Socket $ concat [fncstr, "(", a, ",", b, ")"]
+
+callInfix :: forall (t :: Symbol). String -> SocketReadOnly t -> SocketReadOnly t -> SocketReadOnly t
+callInfix fncstr (Socket a) (Socket b) = Socket $ concat [a, fncstr, b]
+
+instance Num (SocketReadOnly (t :: Symbol)) where
+  (+) = call2 "+"
+  (-) = call2 "-"
+  (*) = call2 "*"
   negate (Socket a) = Socket $ concat ["(-", a, ")"]
-  abs (Socket a)    = Socket $ concat ["abs(", a, ")"]
-  signum (Socket a) = Socket $ concat ["sign(", a, ")"]
+  abs    = call "abs"
+  signum = call "sign"
   fromInteger = Socket . show . (fromInteger :: Integer -> Float)
 
-instance Fractional (SocketReadOnly "float") where
+instance Fractional (SocketReadOnly (t :: Symbol)) where
   fromRational a = Socket $ show $
     (fromIntegral (numerator a) :: Float) / fromIntegral (denominator a)
-  (/) (Socket a) (Socket b) = Socket $ concat [a, "/", b]
+  (/) = callInfix "/"
+
+instance Floating (SocketReadOnly (t :: Symbol)) where
+  pi = Socket $ show (pi :: Float)
+  exp  = call "exp"
+  log  = call "log"
+  sqrt = call "sqrt"
+  (**) = call2 "pow"
+  logBase a b = log b / log a
+  sin = call "sin"
+  cos = call "cos"
+  tan = call "tan"
+  asin = call "asin"
+  acos = call "acos"
+  atan = call "atan"
+  sinh = call "sinh"
+  cosh = call "cosh"
+  tanh = call "tanh"
+  asinh = call "asinh"
+  acosh = call "acosh"
+  atanh = call "atanh"
 
 main_ = sub "void main() {" "}"
 

@@ -37,11 +37,14 @@ resolver: lts-8.13
 # will not be run. This is useful for tweaking upstream packages.
 packages:
 - .
-- location: ../../glucose
+- location:
+    git: https://github.com/schell/glucose.git
+    commit: d0c26f94d9238f9b9fd90cdf3b254bb7a5e4d2ce
   extra-dep: true
-- location: ../../gristle
-  extra-dep: true
-- ../glucose-example-shared
+  subdirs:
+  - glucose
+  - gristle
+  - glucose-example/glucose-example-shared
 - location:
     git: https://github.com/lukexi/halive
     commit: a1ddda47b348c212ffbcb63881eb0fc2779cb828
