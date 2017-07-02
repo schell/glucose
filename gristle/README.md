@@ -1,11 +1,18 @@
 # gristle
 `gristle` is a shallow embeddeding of the OpenGL Shading Language in Haskell. It
-aims to look as close to actual glsl shader code as possibly, while providing
+aims to look as close to actual glsl shader code as possible, while providing
 better compile-time safety. Currently writing shader code in `gristle`'s
-@IxShader@ monad will catch variable assignment mismatchs, multiplication
+`IxShader` monad will catch variable assignment mismatchs, multiplication
 mismatches and some other common errors. It also builds a description of your
 shader at the type level to use downstream during buffering and uniform updates.
 Lastly, it abstracts over shader code written for opengl and webgl.
+
+The entire language is not supported, though you can easy use the `nxt` and `acc`
+functions to push your own glsl into the pipeline, typechecking only what you
+want.
+
+The resulting source is pretty and human readable, even debuggable without
+sourcemapping.
 
 ## example
 
@@ -44,6 +51,7 @@ main = do
   putStrLn "First OpenGL:"
   putSrcLn $ vertex @'OpenGLContext
   putStrLn "\nThen WebGL:"
+  putSrcLn $ vertex @'WebGLContext
 {-
 First OpenGL:
 in vec2 position;
