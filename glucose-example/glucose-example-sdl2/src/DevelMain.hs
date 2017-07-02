@@ -128,21 +128,22 @@ main = do
     return window
 
   let gl@(OpenGL GLES{..}) = opengl
-  compileIxProgram @'OpenGLContext gl passthruVertex helloFrag >>= \case
+  compileIxProgram @'OpenGLContext gl passthruVertex frag031 >>= \case
     Left err -> fix $ \loop -> do
       putStrLn err
       threadDelay $ 5 * 1000000
       loop
     Right program -> do
       glClearColor 0 0 0 1
-      vao <- setupAttributes gl program
+      vao   <- setupAttributes gl program
+      uTime <- glGetUniformLocation program "u_time"
       fix $ \loop -> do
         shouldQuit <- any areQuit <$> pollEvents
         millis     <- ticks
         sz         <- glGetDrawableSize window
         let V2 w h = fromIntegral <$> sz
             t      = fromIntegral millis / 1000
-
+        glUniform1f uTime t
         glClear $ fromIntegral gl_COLOR_BUFFER_BIT
         glViewport 0 0 (fromIntegral $ floor w) (fromIntegral $ floor h)
         glBindVertexArray vao

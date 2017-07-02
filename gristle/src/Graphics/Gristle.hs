@@ -335,8 +335,10 @@ instance IsR1 "uvec3" where
 instance IsR1 "uvec4" where
   type ToR1 "uvec4" = "uint"
 
-x :: IsR1 typ => Socket typ 'True w -> Socket (ToR1 typ) 'True w
-x (Socket s) = Socket $ s ++ ".x"
+x
+  :: forall (t :: Symbol) (w :: Bool). IsR1 t
+  => Socket t 'True w -> Socket (ToR1 t) 'True w
+x (Socket s) = Socket $ concat ["(", s, ").x"]
 
 class IsR2 (a :: Symbol) where
   type ToR2 a :: Symbol
@@ -365,8 +367,45 @@ instance IsR2 "uvec3" where
 instance IsR2 "uvec4" where
   type ToR2 "uvec4" = "uint"
 
-y :: IsR2 typ => Socket typ 'True w -> Socket (ToR2 typ) 'True w
-y (Socket s) = Socket $ s ++ ".y"
+y
+  :: forall (t :: Symbol) (w :: Bool). IsR2 t
+  => Socket t 'True w -> Socket (ToR2 t) 'True w
+y (Socket s) = Socket $ concat ["(", s, ").y"]
+
+gl_FragCoord :: SocketReadOnly "vec4"
+gl_FragCoord = Socket "gl_FragCoord"
+
+class IsVec2 (a :: Symbol) where
+  type ToVec2 a :: Symbol
+instance IsVec2 "vec2" where
+  type ToVec2 "vec2" = "vec2"
+instance IsVec2 "vec3" where
+  type ToVec2 "vec3" = "vec2"
+instance IsVec2 "vec4" where
+  type ToVec2 "vec4" = "vec2"
+instance IsVec2 "ivec2" where
+  type ToVec2 "ivec2" = "ivec2"
+instance IsVec2 "ivec3" where
+  type ToVec2 "ivec3" = "ivec2"
+instance IsVec2 "ivec4" where
+  type ToVec2 "ivec4" = "ivec2"
+instance IsVec2 "bvec2" where
+  type ToVec2 "bvec2" = "bvec2"
+instance IsVec2 "bvec3" where
+  type ToVec2 "bvec3" = "bvec2"
+instance IsVec2 "bvec4" where
+  type ToVec2 "bvec4" = "bvec2"
+instance IsVec2 "uvec2" where
+  type ToVec2 "uvec2" = "uvec2"
+instance IsVec2 "uvec3" where
+  type ToVec2 "uvec3" = "uvec2"
+instance IsVec2 "uvec4" where
+  type ToVec2 "uvec4" = "uvec2"
+
+xy
+  :: forall (t :: Symbol) (w :: Bool). IsVec2 t
+  => Socket t 'True w -> Socket (ToVec2 t) 'True w
+xy (Socket a) = Socket $ concat ["(", a, ").xy"]
 
 f :: Float -> SocketReadOnly "float"
 f = Socket . show
