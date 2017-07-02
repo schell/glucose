@@ -37,9 +37,15 @@ resolver: lts-8.13
 # will not be run. This is useful for tweaking upstream packages.
 packages:
 - .
-- ../../glucose
-- ../../gristle
+- location: ../../glucose
+  extra-dep: true
+- location: ../../gristle
+  extra-dep: true
 - ../glucose-example-shared
+- location:
+    git: https://github.com/lukexi/halive
+    commit: a1ddda47b348c212ffbcb63881eb0fc2779cb828
+  extra-dep: true
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:

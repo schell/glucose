@@ -14,11 +14,7 @@
 {-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE TypeFamilies          #-}
 
-module Graphics.Glucose.Shared
-    ( makeProgram
-    , setup
-    , drawScene
-    ) where
+module Graphics.Glucose.Shared where
 
 import           Control.Monad.IO.Class          (MonadIO (..))
 import           Control.Monad.Trans             (lift)
@@ -71,10 +67,9 @@ makeProgram gl = do
   runEitherT $ do
     vSrc0 <- hoist $ return $ ixShaderSrc @MyGLContext vertex
     fSrc0 <- hoist $ return $ ixShaderSrc @MyGLContext fragment
-    let srcs@[vSrc1, fSrc1] = case getCtx @MyGLContext of
+    let [vSrc1, fSrc1] = case getCtx @MyGLContext of
           OpenGLContext -> map ("#version 330 core\n" ++) [vSrc0, fSrc0]
           WebGLContext  -> [vSrc0, fSrc0]
-    liftIO $ print srcs
     vshader <- hoist $ compileShader gl gl_VERTEX_SHADER vSrc1
     fshader <- hoist $ compileShader gl gl_FRAGMENT_SHADER fSrc1
     program <- hoist $ compileProgram gl [(0, "position"), (1, "color")] [vshader, fshader]

@@ -13,18 +13,34 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
-executable glucose-example-sdl2
+flag Devel
+  default: False
+  description: Enable dev deps
+  manual: True
+
+library
   hs-source-dirs:      src
-  main-is:             Main.hs
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
-  build-depends:       base >= 4.7 && < 5
+  exposed-modules:     Run, Shaders
+  build-depends:       async
+                     , base >= 4.7 && < 5
                      , either
+                     , halive
                      , glucose
                      , glucose-example-shared
+                     , gristle
                      , linear
                      , mtl
                      , sdl2
+                     , stm
                      , vector
+
+executable glucose-example-sdl2
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  -- ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base >= 4.7 && < 5
+                     , glucose-example-sdl2
+
   default-language:    Haskell2010
 
 source-repository head

@@ -39,6 +39,30 @@ data Uniform typ name = Uniform
 data In typ name = In
 data Out typ name = Out
 
+class Binding a t where
+  getVertexBinding  :: t
+  getUniformBinding :: t
+
+instance KnownSymbol b => Binding (Uniform a b) (Maybe String) where
+  getVertexBinding = Nothing
+  getUniformBinding = Just $ symbolVal $ Proxy @b
+
+instance KnownSymbol b => Binding (In a b) (Maybe String) where
+  getVertexBinding = Just $ symbolVal $ Proxy @b
+  getUniformBinding = Nothing
+
+instance KnownSymbol b => Binding (Out a b) (Maybe String) where
+  getVertexBinding = Nothing
+  getUniformBinding = Nothing
+
+instance Binding '[] [t] where
+  getVertexBinding = []
+  getUniformBinding = []
+
+instance (Binding a t, Binding as [t]) => Binding (a ': as) [t] where
+  getVertexBinding  = getVertexBinding  @a : getVertexBinding  @as
+  getUniformBinding = getUniformBinding @a : getUniformBinding @as
+
 data IxShader ctx i j n where
   ShNxt :: [String] -> n -> IxShader ctx i j n
   ShAcc :: [String] -> t -> n -> IxShader ctx i (i :++ '[t]) n

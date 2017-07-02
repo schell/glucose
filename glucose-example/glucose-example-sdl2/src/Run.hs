@@ -10,7 +10,7 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
 
-module Main where
+module Run where
 
 import           Control.Monad              (forever, unless, void)
 import           Control.Monad.IO.Class     (MonadIO, liftIO)
@@ -40,8 +40,8 @@ areQuit :: Event -> Bool
 areQuit (Event _ QuitEvent) = True
 areQuit _                   = False
 
-main :: IO ()
-main = do
+run :: IO ()
+run = do
   initializeAll
   let ogl = defaultOpenGL{ glProfile = Core Debug 3 3 }
       cfg = defaultWindow{ windowOpenGL      = Just ogl
