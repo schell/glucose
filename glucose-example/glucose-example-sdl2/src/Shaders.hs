@@ -10,48 +10,87 @@
 {-# OPTIONS_GHC -fprint-explicit-kinds #-}
 module Shaders where
 
-import           Data.Ratio       (denominator, numerator)
+import           Data.List        (intercalate)
 import           GHC.TypeLits
-import           Graphics.Gristle hiding (Fractional, Num)
+import           Graphics.Gristle
 import           Prelude          hiding (return, (>>), (>>=))
 
 ------------------------------------------------------------------------------
 -- Stuff goes to mainline gristle
 ------------------------------------------------------------------------------
-gl_FragCoord :: SocketReadOnly "vec4"
-gl_FragCoord = Socket "gl_FragCoord"
+vec2
+  :: forall (ctx :: GLContext) i.
+     String
+  -> IxShader ctx i i (SocketReadWrite "vec2")
+vec2 s = do
+  nxt_ $ unwords ["vec2", s, ";"]
+  return $ Socket s
 
-class IsVec2 (a :: Symbol) where
-  type ToVec2 a :: Symbol
-instance IsVec2 "vec2" where
-  type ToVec2 "vec2" = "vec2"
-instance IsVec2 "vec3" where
-  type ToVec2 "vec3" = "vec2"
-instance IsVec2 "vec4" where
-  type ToVec2 "vec4" = "vec2"
-instance IsVec2 "ivec2" where
-  type ToVec2 "ivec2" = "ivec2"
-instance IsVec2 "ivec3" where
-  type ToVec2 "ivec3" = "ivec2"
-instance IsVec2 "ivec4" where
-  type ToVec2 "ivec4" = "ivec2"
-instance IsVec2 "bvec2" where
-  type ToVec2 "bvec2" = "bvec2"
-instance IsVec2 "bvec3" where
-  type ToVec2 "bvec3" = "bvec2"
-instance IsVec2 "bvec4" where
-  type ToVec2 "bvec4" = "bvec2"
-instance IsVec2 "uvec2" where
-  type ToVec2 "uvec2" = "uvec2"
-instance IsVec2 "uvec3" where
-  type ToVec2 "uvec3" = "uvec2"
-instance IsVec2 "uvec4" where
-  type ToVec2 "uvec4" = "uvec2"
+class IsR3 (a :: Symbol) where
+  type ToR3 a :: Symbol
+instance IsR3 "vec2" where
+  type ToR3 "vec2" = "float"
+instance IsR3 "vec3" where
+  type ToR3 "vec3" = "float"
+instance IsR3 "vec4" where
+  type ToR3 "vec4" = "float"
+instance IsR3 "ivec2" where
+  type ToR3 "ivec2" = "int"
+instance IsR3 "ivec3" where
+  type ToR3 "ivec3" = "int"
+instance IsR3 "ivec4" where
+  type ToR3 "ivec4" = "int"
+instance IsR3 "bvec2" where
+  type ToR3 "bvec2" = "bool"
+instance IsR3 "bvec3" where
+  type ToR3 "bvec3" = "bool"
+instance IsR3 "bvec4" where
+  type ToR3 "bvec4" = "bool"
+instance IsR3 "uvec2" where
+  type ToR3 "uvec2" = "uint"
+instance IsR3 "uvec3" where
+  type ToR3 "uvec3" = "uint"
+instance IsR3 "uvec4" where
+  type ToR3 "uvec4" = "uint"
 
-xy
-  :: forall (t :: Symbol) (w :: Bool). IsVec2 t
-  => Socket t 'True w -> Socket (ToVec2 t) 'True w
-xy (Socket a) = Socket $ concat ["(", a, ").xy"]
+z
+  :: forall (t :: Symbol) (w :: Bool). IsR3 t
+  => Socket t 'True w -> Socket (ToR3 t) 'True w
+z (Socket s) = Socket $ concat ["(", s, ").z"]
+
+mkvec3
+  :: forall (w1 :: Bool) (w2 :: Bool) (w3 :: Bool).
+     Socket "float" 'True w1
+  -> Socket "float" 'True w2
+  -> Socket "float" 'True w3
+  -> Socket "vec3" 'True 'False
+mkvec3 (Socket a) (Socket b) (Socket c) =
+  Socket $ "vec3(" ++ intercalate "," [a, b, c] ++ ")"
+
+call3
+  :: forall (t :: Symbol) (r :: Bool) (w :: Bool) (rr :: Bool) (ww :: Bool).
+     String
+  -> Socket t r w
+  -> Socket t r w
+  -> Socket t r w
+  -> Socket t rr ww
+call3 fncstr (Socket a) (Socket b) (Socket c) =
+  Socket $ concat [fncstr, "(", a, ",", b, ",", c, ")"]
+
+smoothstep
+  :: forall (t :: Symbol) (r :: Bool) (w :: Bool).
+     Socket t r w
+  -> Socket t r w
+  -> Socket t r w
+  -> SocketReadOnly t
+smoothstep = call3 "smoothstep"
+
+type Function t ps ctx i = ps -> IxShader ctx i i ()
+
+func funcname sh = do
+  sub (unwords [retype, funcname, "{"]) "}" sh
+  return $ \ps -> do
+  where retype = symbolVal $ Proxy @ret
 ------------------------------------------------------------------------------
 -- Book of Shaders
 ------------------------------------------------------------------------------
@@ -86,8 +125,8 @@ frag030 = do
 
 frag031
   :: forall (ctx :: GLContext). (HasContext ctx, KnownSymbol (GLFragName ctx))
-  => IxShader ctx '[] '[ Uniform "vec2" "u_resolution"
-                       , Uniform "vec2" "u_mouse"
+  => IxShader ctx '[] '[ Uniform "vec2"  "u_resolution"
+                       , Uniform "vec2"  "u_mouse"
                        , Uniform "float" "u_time"
                        , Out "vec4" (GLFragName ctx)
                        ] ()
@@ -99,3 +138,34 @@ frag031 = do
   main_ $ do
     let st = xy gl_FragCoord / uResolution
     frag .= mkvec4 (x st) (y st) (f 0) (f 1)
+--------------------------------------------------------------------------------
+-- 05
+--------------------------------------------------------------------------------
+frag050
+  :: forall (ctx :: GLContext). (HasContext ctx, KnownSymbol (GLFragName ctx))
+  => IxShader ctx '[] '[ Uniform "vec2"  "u_resolution"
+                       , Uniform "vec2"  "u_mouse"
+                       , Uniform "float" "u_time"
+                       , Out "vec4" (GLFragName ctx)
+                       ] ()
+frag050 = do
+  uResolution <- uniform_
+  _           <- uniform_
+  _           <- uniform_
+  frag        <- gl_FragColor
+
+  main_ $ do
+    let plot :: SocketReadOnly "vec2" -> SocketReadOnly "float" -> SocketReadOnly "float"
+        plot st pct = smoothstep (pct - 0.02) pct (y st)
+                      - smoothstep pct (pct + 0.02) (y st)
+        st :: SocketReadOnly "vec2"
+        st = xy gl_FragCoord / uResolution
+        y0 :: SocketReadOnly "float"
+        y0 = x st
+        color0 :: SocketReadOnly "vec3"
+        color0 = mkvec3 y0 y0 y0
+        pct :: SocketReadOnly "float"
+        pct = plot st y0
+        color1 :: SocketReadOnly "vec3"
+        color1 = ((f 1.0 - pct) .* color0) + (pct .* mkvec3 (f 0) (f 1) (f 0))
+    frag .= mkvec4 (x color1) (y color1) (z color1) (f 1)
