@@ -4,14 +4,14 @@
 {-# LANGUAGE RebindableSyntax #-}
 {-# LANGUAGE TypeApplications #-}
 module Graphics.Glucose.Shared.Shaders
-  ( vertex
-  , fragment
+  ( myvertex
+  , myfragment
   ) where
 
 import           Graphics.Gristle
 import           Prelude          hiding (return, (>>), (>>=))
 
-vertex
+myvertex
   :: forall ctx. HasContext ctx
   => IxShader ctx '[] '[ In      "vec2" "position"
                        , In      "vec4" "color"
@@ -19,8 +19,9 @@ vertex
                        , Uniform "mat4" "modelview"
                        , Out     "vec4" "fcolor"
                        , Out     "vec4" "gl_Position"
+                       , Main
                        ] ()
-vertex = do
+myvertex = do
   pos    <- in_
   color  <- in_
   proj   <- uniform_
@@ -31,12 +32,13 @@ vertex = do
     fcolor .= color
     glPos  .= proj .* modl .* mkvec4 (x pos) (y pos) (f 0.0) (f 1.0)
 
-fragment
+myfragment
   :: forall ctx. (HasContext ctx, KnownSymbol (GLFragName ctx))
   => IxShader ctx '[] '[ In  "vec4" "fcolor"
                        , Out "vec4" (GLFragName ctx)
+                       , Main
                        ] ()
-fragment = do
+myfragment = do
   fcolor <- in_
   glFrag <- gl_FragColor
   main_ $ glFrag .= fcolor

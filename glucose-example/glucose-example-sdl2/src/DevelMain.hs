@@ -12,7 +12,7 @@
 {-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE TypeFamilies          #-}
 
-module DevelMain where
+module Main where
 
 import           Control.Concurrent           (threadDelay)
 import           Control.Concurrent.Async     (asyncBound, withAsyncBound)
@@ -119,16 +119,16 @@ main = do
     initializeAll
     let ogl = defaultOpenGL{ glProfile = Core Debug 3 3 }
         cfg = defaultWindow{ windowOpenGL      = Just ogl
-                          , windowResizable   = True
-                          , windowHighDPI     = False
-                          , windowInitialSize = V2 640 480
-                          }
+                           , windowResizable   = True
+                           , windowHighDPI     = False
+                           , windowInitialSize = V2 640 480
+                           }
     window <- createWindow "Glucose SDL2 Example" cfg
     void $ glCreateContext window -- from sdl2
     return window
 
   let gl@(OpenGL GLES{..}) = opengl
-  compileIxProgram @'OpenGLContext gl passthruVertex frag050 >>= \case
+  compileIxProgram gl passthruVertex frag053 >>= \case
     Left err -> fix $ \loop -> do
       putStrLn err
       threadDelay $ 5 * 1000000

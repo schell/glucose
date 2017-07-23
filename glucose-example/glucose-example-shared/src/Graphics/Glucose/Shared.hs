@@ -24,7 +24,7 @@ import qualified Data.Foldable                   as F
 import           Data.Vector.Storable            (Storable, Vector)
 import qualified Data.Vector.Storable            as V
 import           Graphics.Glucose
-import           Graphics.Glucose.Shared.Shaders (fragment, vertex)
+import           Graphics.Glucose.Shared.Shaders (myfragment, myvertex)
 import           Graphics.Glucose.Utils          (compileProgram, compileShader)
 import           Graphics.Gristle                (GLContext (..), getCtx,
                                                   ixShaderSrc)
@@ -65,8 +65,8 @@ makeProgram gl = do
   let GLES{..} = gles gl
   --glEnable gl_DEPTH_TEST
   runEitherT $ do
-    vSrc0 <- hoist $ return $ ixShaderSrc @MyGLContext vertex
-    fSrc0 <- hoist $ return $ ixShaderSrc @MyGLContext fragment
+    vSrc0 <- hoist $ return $ ixShaderSrc @MyGLContext myvertex
+    fSrc0 <- hoist $ return $ ixShaderSrc @MyGLContext myfragment
     let [vSrc1, fSrc1] = case getCtx @MyGLContext of
           OpenGLContext -> map ("#version 330 core\n" ++) [vSrc0, fSrc0]
           WebGLContext  -> [vSrc0, fSrc0]

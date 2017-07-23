@@ -1,171 +1,185 @@
-{-# LANGUAGE DataKinds         #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE KindSignatures    #-}
-{-# LANGUAGE RankNTypes        #-}
-{-# LANGUAGE RebindableSyntax  #-}
-{-# LANGUAGE TypeApplications  #-}
-{-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE RebindableSyntax      #-}
+{-# LANGUAGE NoImplicitPrelude      #-}
+{-# LANGUAGE TypeApplications      #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeOperators         #-}
 {-# OPTIONS_GHC -fno-warn-orphans  #-}
+{-# OPTIONS_GHC -fno-warn-missing-signatures  #-}
 {-# OPTIONS_GHC -fprint-explicit-kinds #-}
 module Shaders where
 
-import           Data.List        (intercalate)
-import           GHC.TypeLits
 import           Graphics.Gristle
-import           Prelude          hiding (return, (>>), (>>=))
 
 ------------------------------------------------------------------------------
 -- Stuff goes to mainline gristle
 ------------------------------------------------------------------------------
-vec2
-  :: forall (ctx :: GLContext) i.
-     String
-  -> IxShader ctx i i (SocketReadWrite "vec2")
-vec2 s = do
-  nxt_ $ unwords ["vec2", s, ";"]
-  return $ Socket s
-
-class IsR3 (a :: Symbol) where
-  type ToR3 a :: Symbol
-instance IsR3 "vec2" where
-  type ToR3 "vec2" = "float"
-instance IsR3 "vec3" where
-  type ToR3 "vec3" = "float"
-instance IsR3 "vec4" where
-  type ToR3 "vec4" = "float"
-instance IsR3 "ivec2" where
-  type ToR3 "ivec2" = "int"
-instance IsR3 "ivec3" where
-  type ToR3 "ivec3" = "int"
-instance IsR3 "ivec4" where
-  type ToR3 "ivec4" = "int"
-instance IsR3 "bvec2" where
-  type ToR3 "bvec2" = "bool"
-instance IsR3 "bvec3" where
-  type ToR3 "bvec3" = "bool"
-instance IsR3 "bvec4" where
-  type ToR3 "bvec4" = "bool"
-instance IsR3 "uvec2" where
-  type ToR3 "uvec2" = "uint"
-instance IsR3 "uvec3" where
-  type ToR3 "uvec3" = "uint"
-instance IsR3 "uvec4" where
-  type ToR3 "uvec4" = "uint"
-
-z
-  :: forall (t :: Symbol) (w :: Bool). IsR3 t
-  => Socket t 'True w -> Socket (ToR3 t) 'True w
-z (Socket s) = Socket $ concat ["(", s, ").z"]
-
-mkvec3
-  :: forall (w1 :: Bool) (w2 :: Bool) (w3 :: Bool).
-     Socket "float" 'True w1
-  -> Socket "float" 'True w2
-  -> Socket "float" 'True w3
-  -> Socket "vec3" 'True 'False
-mkvec3 (Socket a) (Socket b) (Socket c) =
-  Socket $ "vec3(" ++ intercalate "," [a, b, c] ++ ")"
-
-call3
-  :: forall (t :: Symbol) (r :: Bool) (w :: Bool) (rr :: Bool) (ww :: Bool).
-     String
-  -> Socket t r w
-  -> Socket t r w
-  -> Socket t r w
-  -> Socket t rr ww
-call3 fncstr (Socket a) (Socket b) (Socket c) =
-  Socket $ concat [fncstr, "(", a, ",", b, ",", c, ")"]
-
-smoothstep
-  :: forall (t :: Symbol) (r :: Bool) (w :: Bool).
-     Socket t r w
-  -> Socket t r w
-  -> Socket t r w
-  -> SocketReadOnly t
-smoothstep = call3 "smoothstep"
-
-type Function t ps ctx i = ps -> IxShader ctx i i ()
-
-func funcname sh = do
-  sub (unwords [retype, funcname, "{"]) "}" sh
-  return $ \ps -> do
-  where retype = symbolVal $ Proxy @ret
 ------------------------------------------------------------------------------
 -- Book of Shaders
 ------------------------------------------------------------------------------
 passthruVertex
-  :: forall (ctx :: GLContext). HasContext ctx
-  => IxShader ctx '[] '[ In "vec2" "position"
-                       , Out "vec4" "gl_Position"
+  :: forall (ctx :: GLContext). IsGLContext ctx 
+  => IxShader ctx '[] '[ In Xvec2 "position"
+                       , Out Xvec4 "gl_Position"
+                       , Main
                        ] ()
 passthruVertex = do
-  p <- in_
+  p     <- in_
   glpos <- gl_Position
-  main_ $ glpos .= mkvec4 (x p) (y p) (f 0) (f 1)
+  main_ $ glpos .= mkvec4 (x p) (y p) 0.0 1.0
 
 helloFrag
-  :: forall (ctx :: GLContext). (HasContext ctx, KnownSymbol (GLFragName ctx))
-  => IxShader ctx '[] '[ Out "vec4" (GLFragName ctx) ] ()
+  :: forall (ctx :: GLContext). IsGLContext ctx 
+  => IxShader ctx '[] '[ Out Xvec4 (GLFragName ctx)
+                       , Main
+                       ] ()
 helloFrag = do
   frag <- gl_FragColor
-  main_ $ frag .= mkvec4 (f 1) (f 0) (f 1) (f 1)
+  main_ $ frag .= mkvec4 1.0 0.0 1.0 1.0
 --------------------------------------------------------------------------------
 -- 03
 --------------------------------------------------------------------------------
 frag030
-  :: forall (ctx :: GLContext). (HasContext ctx, KnownSymbol (GLFragName ctx))
-  => IxShader ctx '[] '[ Uniform "float" "u_time"
-                       , Out "vec4" (GLFragName ctx)
+  :: IsGLContext ctx 
+  => IxShader ctx '[] '[ Uniform Xfloat "u_time"
+                       , Out Xvec4 (GLFragName ctx)
+                       , Main
                        ] ()
 frag030 = do
   uTime <- uniform_
   frag <- gl_FragColor
-  main_ $ frag .= mkvec4 (abs $ sin uTime) (f 0) (f 0) (f 1)
+  main_ $ frag .= mkvec4 (abs $ sin uTime) 0.0 0.0 1.0
+
+type RMT = '[ Uniform Xvec2 "u_resolution"
+            , Uniform Xvec2 "u_mouse"
+            , Uniform Xfloat "u_time"
+            ]
+type RMTFrag ctx =
+  IxShader ctx '[] (RMT :++ '[Out Xvec4 (GLFragName ctx), Main])
+
 
 frag031
-  :: forall (ctx :: GLContext). (HasContext ctx, KnownSymbol (GLFragName ctx))
-  => IxShader ctx '[] '[ Uniform "vec2"  "u_resolution"
-                       , Uniform "vec2"  "u_mouse"
-                       , Uniform "float" "u_time"
-                       , Out "vec4" (GLFragName ctx)
-                       ] ()
+  :: forall (ctx :: GLContext). IsGLContext ctx => RMTFrag ctx () 
 frag031 = do
   uResolution <- uniform_
   _           <- uniform_
   _           <- uniform_
   frag        <- gl_FragColor
   main_ $ do
-    let st = xy gl_FragCoord / uResolution
-    frag .= mkvec4 (x st) (y st) (f 0) (f 1)
+    st <- define $ Xvec2 "st"
+    st .= xy gl_FragCoord / xy uResolution
+    frag .= mkvec4 (x st) (y st) 0.0 1.0
 --------------------------------------------------------------------------------
 -- 05
 --------------------------------------------------------------------------------
-frag050
-  :: forall (ctx :: GLContext). (HasContext ctx, KnownSymbol (GLFragName ctx))
-  => IxShader ctx '[] '[ Uniform "vec2"  "u_resolution"
-                       , Uniform "vec2"  "u_mouse"
-                       , Uniform "float" "u_time"
-                       , Out "vec4" (GLFragName ctx)
-                       ] ()
-frag050 = do
+getUniformsAndFrag
+  :: forall (ctx :: GLContext). IsGLContext ctx 
+  => IxShader ctx '[] (RMT :++ '[Out Xvec4 (GLFragName ctx)]) (Xvec2, Xvec4)
+getUniformsAndFrag = do
   uResolution <- uniform_
   _           <- uniform_
   _           <- uniform_
   frag        <- gl_FragColor
+  return (uResolution, frag)
 
+plotFunc
+  :: forall (ctx :: GLContext) i. IsGLContext ctx
+  => IxFunction ctx i Xfloat "plot" (Xvec2, Xfloat) 
+plotFunc = func @"plot" (Xvec2 "st", Xfloat "pct") $ \(st, pct) -> do
+  t <- defineAs "thickness" 0.02
+  let a = smoothstep (pct - t) pct       $ y st
+      b = smoothstep pct       (pct + t) $ y st
+  returnValue $ (a - b :: Xfloat)
+
+getColor
+  :: forall (ctx :: GLContext) i.
+     Xvec2
+  -> ((Xvec2, Xfloat) -> Xfloat)
+  -> (Xfloat -> Xfloat)
+  -> IxShader ctx i i Xvec4
+getColor uResolution plot g = do
+  st    <- defineAs "st" $ xy gl_FragCoord / uResolution
+  py    <- defineAs "py" $ g $ x st
+  color <- defineAs "color" $ mkvec3 py py py
+  pct   <- defineAs "pct" $ plot (st, py)
+
+  -- The background is a black to white horizontal gradient and the foreground
+  -- is a green line on y = x
+  bg <- defineAs "bg" $ (1.0 - pct) .* (color .: 1.0)
+  let green = mkvec4 0.0 1.0 0.0 1.0
+  fg <- defineAs "fg" $ pct .* green
+  return $ fg + bg
+
+type RMTPlotFrag ctx = 
+  IxShader ctx '[] (RMT :++ '[ Out Xvec4 (GLFragName ctx)
+                             , Function Xfloat "plot" (Xvec2, Xfloat)
+                             , Main])
+
+frag050 :: forall (ctx :: GLContext). IsGLContext ctx => RMTPlotFrag ctx ()
+frag050 = do
+  (uResolution, frag) <- getUniformsAndFrag 
+  plot                <- plotFunc
   main_ $ do
-    let plot :: SocketReadOnly "vec2" -> SocketReadOnly "float" -> SocketReadOnly "float"
-        plot st pct = smoothstep (pct - 0.02) pct (y st)
-                      - smoothstep pct (pct + 0.02) (y st)
-        st :: SocketReadOnly "vec2"
-        st = xy gl_FragCoord / uResolution
-        y0 :: SocketReadOnly "float"
-        y0 = x st
-        color0 :: SocketReadOnly "vec3"
-        color0 = mkvec3 y0 y0 y0
-        pct :: SocketReadOnly "float"
-        pct = plot st y0
-        color1 :: SocketReadOnly "vec3"
-        color1 = ((f 1.0 - pct) .* color0) + (pct .* mkvec3 (f 0) (f 1) (f 0))
-    frag .= mkvec4 (x color1) (y color1) (z color1) (f 1)
+    color <- getColor uResolution plot id
+    frag .= color
+
+frag051 = do
+  (uResolution, frag) <- getUniformsAndFrag @'OpenGLContext
+  plot                <- plotFunc
+  main_ $ do
+    color <- getColor uResolution plot (** 5.0)
+    frag .= color
+
+frag052 = do
+  (uResolution, frag) <- getUniformsAndFrag @'OpenGLContext
+  plot <- plotFunc
+  main_ $ do
+    st <- defineAs "st" $ xy gl_FragCoord / uResolution
+    py <- defineAs "py" $ step 0.5 (x st)
+    color <- defineAs "color" $ mkvec3 py py py
+    pct   <- defineAs "pct" $ plot (st, py)
+    color .= (1.0 - pct) .* color + pct .* mkvec3 0.0 1.0 0.0
+    frag  .= mkvec4 (x color) (y color) (z color) 1.0
+
+frag053 = do
+  (uResolution, frag) <- getUniformsAndFrag @'OpenGLContext
+  plot <- plotFunc
+  main_ $ do
+    st    <- defineAs "st" $ xy gl_FragCoord / uResolution
+    py    <- defineAs "py" $ smoothstep 0.1 0.9 (x st)
+    color <- defineAs "color" $ mkvec3 py py py
+    pct   <- defineAs "pct" $ plot (st, py)
+    color .= (1.0 - pct) .* color + pct .* mkvec3 0.0 1.0 0.0
+    frag  .= mkvec4 (x color) (y color) (z color) 1.0
+
+silexars1k = do
+  frag        <- gl_FragColor @'OpenGLContext
+  uResolution <- uniform_ @Xvec2 @"u_resolution"
+  uTime       <- uniform_ @Xfloat @"u_time"
+  main_ $ do
+    c  <- defineAs "c" $ mkvec3 0.0 0.0 0.0
+    zt <- defineAs  "z" uTime
+    l  <- defineAs  "l" 0.0
+    for ("i", 0) ((< 3) &&& (+= 1)) $ \i -> do
+      p  <- defineAs "p" $ xy gl_FragCoord / uResolution
+      uv <- defineAs "uv" p
+      p   .= p - (0.5 .: 0.5)
+      x p .= x uResolution / y uResolution
+      zt  .= zt + 0.07
+      l   .= (call "length" p :: Xfloat)
+      thingy <- defineAs "thingy" $ (sin zt + 1.0) * (abs $ sin $ 1.0 * 9.0 - zt * 2.0)
+      uv .= uv + (p .* (1.0 / l)) .* thingy 
+      let set comp =
+            comp c .= 0.01 / (call "length" $ abs $ (call2 "mod" uv 1.0) - 0.5)
+      if i == 0
+      then set x
+      else if i == 1
+           then set y
+           else set z
+    fxyz <- defineAs "fragXYZ" $ c .* (1.0 / l)
+    frag .= fxyz .: zt

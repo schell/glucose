@@ -17,6 +17,10 @@ library
   ghc-options:         -Wall
   hs-source-dirs:      src
   exposed-modules:     Graphics.Gristle
+                       Graphics.Gristle.Function
+                       Graphics.Gristle.IxShader
+                       Graphics.Gristle.Parameters
+                       Graphics.Gristle.Socket
   build-depends:       base >= 4.7 && < 5
                      , ghc-prim
                      , indexed
@@ -24,6 +28,7 @@ library
                      , parsec
                      , prettyclass
                      , singletons
+                     , template-haskell >= 2.11.1.0
                      , text
   default-language:    Haskell2010
 
