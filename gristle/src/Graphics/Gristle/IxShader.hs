@@ -40,6 +40,7 @@ module Graphics.Gristle.IxShader
 import           Control.Arrow                  ((&&&))
 import           Control.Monad.Indexed
 import           Data.Promotion.Prelude.List    ((:++))
+import Data.List (isSuffixOf)
 import           Language.GLSL                  (TranslationUnit (..), parse)
 import           Prelude                        hiding (Read, return, (>>),
                                                  (>>=), fail)
@@ -150,7 +151,13 @@ toSrc :: Pretty a => a -> String
 toSrc = show . pPrint
 
 onlySrc :: IxShader ctx i j a -> String
-onlySrc = unlines . unDecl
+onlySrc = unlines . snd . foldl indent (0, []) . unDecl
+  where ndnt = "  "
+        incIndent n ln
+          | "{" `isSuffixOf` ln = n + 1
+          | "}" `isSuffixOf` ln = n - 1
+          | otherwise           = n
+        indent (n, decls) ln = (incIndent n ln, decls ++ [concat (replicate n ndnt) ++ ln])
 
 ixShaderSrc :: IxShader ctx '[] j a -> Either String String
 ixShaderSrc = fmap toSrc . fromIxShader

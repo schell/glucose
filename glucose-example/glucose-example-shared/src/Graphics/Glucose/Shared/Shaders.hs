@@ -1,24 +1,24 @@
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE DataKinds        #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes       #-}
 {-# LANGUAGE RebindableSyntax #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 module Graphics.Glucose.Shared.Shaders
   ( myvertex
   , myfragment
   ) where
 
 import           Graphics.Gristle
-import           Prelude          hiding (return, (>>), (>>=))
 
 myvertex
   :: forall ctx. HasContext ctx
-  => IxShader ctx '[] '[ In      "vec2" "position"
-                       , In      "vec4" "color"
-                       , Uniform "mat4" "projection"
-                       , Uniform "mat4" "modelview"
-                       , Out     "vec4" "fcolor"
-                       , Out     "vec4" "gl_Position"
+  => IxShader ctx '[] '[ In      Xvec2 "position"
+                       , In      Xvec4 "color"
+                       , Uniform Xmat4 "projection"
+                       , Uniform Xmat4 "modelview"
+                       , Out     Xvec4 "fcolor"
+                       , Out     Xvec4 "gl_Position"
                        , Main
                        ] ()
 myvertex = do
@@ -30,12 +30,12 @@ myvertex = do
   glPos  <- gl_Position
   main_ $ do
     fcolor .= color
-    glPos  .= proj .* modl .* mkvec4 (x pos) (y pos) (f 0.0) (f 1.0)
+    glPos  .= proj .* modl .* (pos .: 0.0 .: 1.0)
 
 myfragment
-  :: forall ctx. (HasContext ctx, KnownSymbol (GLFragName ctx))
-  => IxShader ctx '[] '[ In  "vec4" "fcolor"
-                       , Out "vec4" (GLFragName ctx)
+  :: forall (ctx :: GLContext). IsGLContext ctx 
+  => IxShader ctx '[] '[ In  Xvec4 "fcolor"
+                       , Out Xvec4 (GLFragName ctx)
                        , Main
                        ] ()
 myfragment = do

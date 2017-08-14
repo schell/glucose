@@ -22,6 +22,7 @@ import           Prelude                 hiding (Read, return, (>>), (>>=))
 
 import           Graphics.Gristle.Socket
 import           Graphics.Gristle.Types
+import           Graphics.Gristle.Qualifiers
 
 
 type family MatFromColRow a b where
@@ -81,7 +82,19 @@ type family Multiply a b where
   Multiply Xfloat Xmat4x2 = Xmat4x2
   Multiply Xfloat Xmat4x3 = Xmat4x3
   Multiply Xfloat Xmat4   = Xmat4
-  Multiply a      Xfloat  = Multiply Xfloat a
+
+  Multiply Xvec2   Xfloat = Xvec2
+  Multiply Xvec3   Xfloat = Xvec3
+  Multiply Xvec4   Xfloat = Xvec4
+  Multiply Xmat2   Xfloat = Xmat2
+  Multiply Xmat2x3 Xfloat = Xmat2x3
+  Multiply Xmat2x4 Xfloat = Xmat2x4
+  Multiply Xmat3x2 Xfloat = Xmat3x2
+  Multiply Xmat3   Xfloat = Xmat3
+  Multiply Xmat3x4 Xfloat = Xmat3x4
+  Multiply Xmat4x2 Xfloat = Xmat4x2
+  Multiply Xmat4x3 Xfloat = Xmat4x3
+  Multiply Xmat4   Xfloat = Xmat4
 
   Multiply Xuint Xuvec2   = Xuvec2
   Multiply Xuint Xuvec3   = Xuvec3
@@ -98,8 +111,8 @@ type family Multiply a b where
 -- | Multiply two sockets.
 infixl 7 .*
 (.*)
-  :: forall a b. (Socketed a, Socketed b, Socketed (Multiply a b))
+  :: forall a b. (Socketed a, Socketed b, Socketed (Multiply (ReadFrom a) (ReadFrom b)))
   => a
   -> b
-  -> Multiply a b
+  -> Multiply (ReadFrom a) (ReadFrom b)
 (.*) = callInfix "*"

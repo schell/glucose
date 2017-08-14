@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE AllowAmbiguousTypes   #-}
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE FlexibleContexts      #-}
@@ -35,6 +36,7 @@ import           Prelude                     hiding (Read, return, (>>), (>>=))
 
 
 import           Graphics.Gristle.Socket     as G
+import           Graphics.Gristle.Qualifiers     as G
 import           Graphics.Gristle.Types      as G
 
 type family Swizzled a b where
@@ -51,57 +53,60 @@ type family Swizzled a b where
   Swizzled 4 Xvec3 = Error "Swizzled error: vector field selection out of range"
   Swizzled 4 Xvec4 = Xvec4
 
+type SwizzleRead a n =
+  (Socketed a, Socketed (ReadFrom a), Socketed (Swizzled n (ReadFrom a)))
+
 swizzle
   :: forall (n :: Nat) a.
-     ( Socketed a, Socketed (Swizzled n a)
+     ( SwizzleRead a n 
      , KnownNat n
      )
   => String
   -> a
-  -> Swizzled n a
+  -> Swizzled n (ReadFrom a)
 swizzle s a = socket $ concat ["("
                               , unSocket a
                               , ")." ++ take (fromIntegral $ natVal $ Proxy @n) s
                               ]
 
 x :: forall a.
-     (Socketed a, Socketed (Swizzled 1 a))
+     SwizzleRead a 1 
   => a
-  -> Swizzled 1 a
+  -> Swizzled 1 (ReadFrom a)
 x = swizzle @1 "x"
 
 y :: forall a.
-     (Socketed a, Socketed (Swizzled 1 a))
+     SwizzleRead a 1
   => a
-  -> Swizzled 1 a
+  -> Swizzled 1 (ReadFrom a)
 y = swizzle @1 "y"
 
 z :: forall a.
-     (Socketed a, Socketed (Swizzled 1 a))
+     SwizzleRead a 1
   => a
-  -> Swizzled 1 a
+  -> Swizzled 1 (ReadFrom a)
 z = swizzle @1 "z"
 
 xy :: forall a. 
-     (Socketed a, Socketed (Swizzled 2 a))
+     SwizzleRead a 2
   => a
-  -> Swizzled 2 a
+  -> Swizzled 2 (ReadFrom a)
 xy = swizzle @2 "xy"
 
 xz :: forall a. 
-     (Socketed a, Socketed (Swizzled 2 a))
+     SwizzleRead a 2
   => a
-  -> Swizzled 2 a
+  -> Swizzled 2 (ReadFrom a)
 xz = swizzle @2 "xz"
 
 yz :: forall a. 
-     (Socketed a, Socketed (Swizzled 2 a))
+     SwizzleRead a 2
   => a
-  -> Swizzled 2 a
+  -> Swizzled 2 (ReadFrom a)
 yz = swizzle @2 "yz"
 
 xyz :: forall a. 
-     (Socketed a, Socketed (Swizzled 3 a))
+     SwizzleRead a 3
   => a
-  -> Swizzled 3 a
+  -> Swizzled 3 (ReadFrom a)
 xyz = swizzle @3 "xyz"

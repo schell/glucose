@@ -31,6 +31,7 @@ import           Prelude                            hiding (Read, return, (>>),
 import           Graphics.Gristle.Function.ToParams
 import           Graphics.Gristle.IxShader
 import           Graphics.Gristle.Socket
+import           Graphics.Gristle.Types             (Xvoid)
 
 --------------------------------------------------------------------------------
 -- Defining and calling functions
@@ -46,7 +47,7 @@ funcParams ps = nxt_ $ "(" ++ intercalate ", " (toParams ps) ++ ")"
 
 returnValue
   :: (Socketed a, KnownTypeSymbol a)
-  => a -> IxShader ctx i i a 
+  => a -> IxShader ctx i i a
 returnValue a = nxt (unwords ["return", unSocket a, ";"]) a
 
 funcCall
@@ -69,7 +70,7 @@ func
      (ToParams ps, KnownTypeSymbol rtype, Socketed rtype, KnownSymbol fname)
   => ps
   -> (ps -> IxShader ctx i i rtype)
-  -> IxFunction ctx i rtype fname ps
+  -> IxShader ctx i (i :++ '[Function rtype fname ps]) (ps -> rtype)
 func ps f = do
   nxt_ ""
   funcReturnType @rtype
@@ -80,5 +81,8 @@ func ps f = do
   nxt_ ""
   return $ funcCall @fname
 
-type Main = Function () "main" ()
+use :: Socketed a => a -> IxShader ctx i i () 
+use a = nxt_ (unSocket a ++ ";")
+
+type Main = Function Xvoid "main" ()
 

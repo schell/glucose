@@ -23,7 +23,7 @@ module Graphics.Gristle.Socket where
 
 import           Data.List                 (intercalate)
 import           Data.Promotion.Prelude
-import           Data.Ratio                (denominator, numerator)
+
 import           Graphics.Gristle.IxShader
 import           Language.Haskell.TH
 import           Prelude                   hiding (return, (>>), (>>=))
@@ -50,13 +50,6 @@ genSocketed t un con = [d|
     unSocket = $un
     socket = $con
   |]
-
-instance Socketed () where
-  unSocket = const ""
-  socket = const ()
-
-instance KnownTypeSymbol () where
-  typeSymbolVal _ = "void"
 
 call
   :: (Socketed a, Socketed b)
@@ -94,49 +87,6 @@ callInfix fncstr a b =
 
 toDefinition :: forall a. (Socketed a, KnownTypeSymbol a) => a -> String
 toDefinition a = unwords [typeSymbolVal $ Proxy @a, unSocket a]
-
-genNum :: TypeQ -> DecsQ
-genNum typ = [d|
-  instance Socketed $typ => Num $typ where
-    (+) = callInfix "+"
-    (-) = callInfix "-"
-    (*) = callInfix "*"
-    negate a = socket $ concat ["(-", unSocket a, ")"]
-    abs    = call "abs"
-    signum = call "sign"
-    fromInteger = socket . show
- |]
-
-genFractional :: TypeQ -> DecsQ
-genFractional typ = [d|
-  instance Socketed $typ => Fractional $typ where
-    fromRational a = socket $ show $
-      (fromIntegral (numerator a) :: Float) / fromIntegral (denominator a)
-    (/) = callInfix "/"
-  |]
-
-genFloating :: TypeQ -> DecsQ
-genFloating typ = [d|
-  instance Socketed $typ => Floating $typ where
-    pi = socket $ show (pi :: Float)
-    exp  = call "exp"
-    log  = call "log"
-    sqrt = call "sqrt"
-    (**) = call2 "pow"
-    logBase a b = log b / log a
-    sin = call "sin"
-    cos = call "cos"
-    tan = call "tan"
-    asin = call "asin"
-    acos = call "acos"
-    atan = call "atan"
-    sinh = call "sinh"
-    cosh = call "cosh"
-    tanh = call "tanh"
-    asinh = call "asinh"
-    acosh = call "acosh"
-    atanh = call "atanh"
- |]
 
 -- | Construct a new thing. Declares the thing w/o initialization.
 define

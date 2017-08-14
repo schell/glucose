@@ -14,6 +14,7 @@
 
 module Main where
 
+import           Codec.Wavefront              (WavefrontOBJ (..), fromFile)
 import           Control.Concurrent           (threadDelay)
 import           Control.Concurrent.Async     (asyncBound, withAsyncBound)
 import           Control.Concurrent.STM.TMVar
@@ -39,9 +40,10 @@ import           Graphics.Glucose.Utils       (compileProgram, compileShader)
 
 import           Graphics.Gristle             (Binding (..), GLContext (..),
                                                HasContext (..), IxShader,
-                                               getCtx, ixShaderSrc)
+                                               getCtx, onlySrc)
 
 import           Shaders
+import           Shaders.Simple3d
 
 ------------------------------------------------------------------------------
 -- IxShader helpers
@@ -54,7 +56,7 @@ compileIxShader
   -> (M a) (Either String (GLShader a))
 compileIxShader gl ixshader shadertype = runEitherT $ do
   let GLES{..} = gles gl
-  src0 <- EitherT $ return $ ixShaderSrc ixshader
+      src0 = onlySrc ixshader
   let src1 = case getCtx @ctx of
         OpenGLContext -> "#version 330 core\n" ++ src0
         WebGLContext  -> src0
@@ -109,9 +111,26 @@ setupAttributes gl program = do
   return vao
 
 
+setupObjAttributes
+  :: forall a. (IsGLES a, MonadIO (M a))
+  => a
+  -> GLProgram a
+  -> WavefrontOBJ
+  -> (M a) (GLVertexArrayObject a)
+setupObjAttributes gl program obj = do
+  let GLES{..} = gles gl
+  vao <_ glCreateVertexArray
+  glBindVertexArray vao
+
+  posBuffer <- glCreateBuffer
+  glBindBuffer gl_ARRAY_BUFFER posBuffer
+  let geom :: Vector ()
+
+
 areQuit :: Event -> Bool
 areQuit (Event _ QuitEvent) = True
 areQuit _                   = False
+
 
 main :: IO ()
 main = do
@@ -127,15 +146,21 @@ main = do
     void $ glCreateContext window -- from sdl2
     return window
 
+  obj <- fromFile "/Users/schell/Desktop/torus.obj" >>= \case
+    Left err  -> putStrLn err >> exitFailure
+    Right obj -> return obj
+
   let gl@(OpenGL GLES{..}) = opengl
-  compileIxProgram gl passthruVertex frag053 >>= \case
+  compileIxProgram @'OpenGLContext gl diffuseVertex diffuseFragment >>= \case
     Left err -> fix $ \loop -> do
       putStrLn err
       threadDelay $ 5 * 1000000
       loop
     Right program -> do
       glClearColor 0 0 0 1
-      vao         <- setupAttributes gl program
+      glEnable gl_DEPTH_TEST
+      glDepthFunc gl_LESS
+      vao         <- setupObjAttributes gl program obj
       uTime       <- glGetUniformLocation program "u_time"
       uResolution <- glGetUniformLocation program "u_resolution"
       fix $ \loop -> do

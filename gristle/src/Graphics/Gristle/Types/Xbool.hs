@@ -34,35 +34,6 @@ $(genKnownTypeSymbol [t|Xbool|] [e|"bool"|])
 $(genSocketed        [t|Xbool|] [e|unXbool|] [e|Xbool|])
 $(genToParams        [t|Xbool|])
 
-(==) :: Socketed a => a -> a -> Xbool
-(==) = callInfix "=="
-
-(/=) :: Socketed a => a -> a -> Xbool
-(/=) = callInfix "!="
-
-infix 4 <
-(<)  :: Socketed a => a -> a -> Xbool
-(<) = callInfix "<"
-
-infix 4 <=
-(<=) :: Socketed a => a -> a -> Xbool
-(<=) = callInfix "<="
-
-infix 4 >
-(>)  :: Socketed a => a -> a -> Xbool
-(>) = callInfix ">"
-
-infix 4 >=
-(>=) :: Socketed a => a -> a -> Xbool
-(>=) = callInfix ">="
-
-max  :: Socketed a => a -> a -> a
-max = call2 "max"
-
-min  :: Socketed a => a -> a -> a
-min = call2 "min"
-
-
 ifThenElse :: Xbool -> IxShader ctx i i () -> IxShader ctx i i () -> IxShader ctx i i ()
 ifThenElse x a b = do
   nxt_ $ "if (" ++ unSocket x ++ ")"

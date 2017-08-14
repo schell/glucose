@@ -31,12 +31,18 @@ import           Graphics.Gristle.Socket      as G
 import           Graphics.Gristle.Types.Xbool as G
 import           Graphics.Gristle.Function.ToParams
 
-newtype Xvoid = Xvoid { unXvoid :: () }
+--------------------------------------------------------------------------------
+-- int, uint, float
+--------------------------------------------------------------------------------
+newtype Xvoid = Xvoid { unXvoid :: String }
 instance Socketed Xvoid where
-  unSocket = const "void"
-  socket = const $ Xvoid ()
+  unSocket = unXvoid 
+  socket = Xvoid 
 instance KnownTypeSymbol Xvoid where
   typeSymbolVal _ = "void"
+
+nil :: Xvoid
+nil = Xvoid ""
 
 --------------------------------------------------------------------------------
 -- int, uint, float
@@ -44,7 +50,6 @@ instance KnownTypeSymbol Xvoid where
 newtype Xint = Xint { unXint :: String }
 $(genKnownTypeSymbol [t|Xint|] [e|"int"|])
 $(genSocketed        [t|Xint|] [e|unXint|] [e|Xint|])
-$(genNum             [t|Xint|])
 $(genToParams        [t|Xint|])
 
 --int :: Int -> Xint 
@@ -53,7 +58,6 @@ $(genToParams        [t|Xint|])
 newtype Xuint = Xuint { unXuint :: String }
 $(genKnownTypeSymbol [t|Xuint|] [e|"uint"|])
 $(genSocketed        [t|Xuint|] [e|unXuint|] [e|Xuint|])
-$(genNum             [t|Xuint|])
 $(genToParams        [t|Xuint|])
 
 --uint :: Word -> Xuint
@@ -62,10 +66,11 @@ $(genToParams        [t|Xuint|])
 newtype Xfloat = Xfloat { unXfloat :: String }
 $(genKnownTypeSymbol [t|Xfloat|] [e|"float"|])
 $(genSocketed        [t|Xfloat|] [e|unXfloat|] [e|Xfloat|])
-$(genNum             [t|Xfloat|])
-$(genFractional      [t|Xfloat|])
-$(genFloating        [t|Xfloat|])
 $(genToParams        [t|Xfloat|])
+
+
+pi :: Socketed a => a
+pi = socket $ show (Prelude.pi :: Float)
 
 --float :: Float -> Xfloat
 --float = Xfloat . show
@@ -76,9 +81,6 @@ $(genToParams        [t|Xfloat|])
 newtype Xvec2 = Xvec2 { unXvec2 :: String }
 $(genKnownTypeSymbol [t|Xvec2|] [e|"vec2"|])
 $(genSocketed        [t|Xvec2|] [e|unXvec2|] [e|Xvec2|])
-$(genNum             [t|Xvec2|])
-$(genFractional      [t|Xvec2|])
-$(genFloating        [t|Xvec2|])
 $(genToParams        [t|Xvec2|])
 
 --vec2 :: Float -> Float -> Xvec2
@@ -87,17 +89,11 @@ $(genToParams        [t|Xvec2|])
 newtype Xvec3 = Xvec3 { unXvec3 :: String }
 $(genKnownTypeSymbol [t|Xvec3|] [e|"vec3"|])
 $(genSocketed        [t|Xvec3|] [e|unXvec3|] [e|Xvec3|])
-$(genNum             [t|Xvec3|])
-$(genFractional      [t|Xvec3|])
-$(genFloating        [t|Xvec3|])
 $(genToParams        [t|Xvec3|])
 
 newtype Xvec4 = Xvec4 { unXvec4 :: String }
 $(genKnownTypeSymbol [t|Xvec4|] [e|"vec4"|])
 $(genSocketed        [t|Xvec4|] [e|unXvec4|] [e|Xvec4|])
-$(genNum             [t|Xvec4|])
-$(genFractional      [t|Xvec4|])
-$(genFloating        [t|Xvec4|])
 $(genToParams        [t|Xvec4|])
 
 
@@ -126,19 +122,16 @@ $(genToParams        [t|Xbvec4|])
 newtype Xivec2 = Xivec2 { unXivec2 :: String }
 $(genKnownTypeSymbol [t|Xivec2|] [e|"ivec2"|])
 $(genSocketed        [t|Xivec2|] [e|unXivec2|] [e|Xivec2|])
-$(genNum             [t|Xivec2|])
 $(genToParams        [t|Xivec2|])
 
 newtype Xivec3 = Xivec3 { unXivec3 :: String }
 $(genKnownTypeSymbol [t|Xivec3|] [e|"ivec3"|])
 $(genSocketed        [t|Xivec3|] [e|unXivec3|] [e|Xivec3|])
-$(genNum             [t|Xivec3|])
 $(genToParams        [t|Xivec3|])
 
 newtype Xivec4 = Xivec4 { unXivec4 :: String }
 $(genKnownTypeSymbol [t|Xivec4|] [e|"ivec4"|])
 $(genSocketed        [t|Xivec4|] [e|unXivec4|] [e|Xivec4|])
-$(genNum             [t|Xivec4|])
 $(genToParams        [t|Xivec4|])
 
 
@@ -148,19 +141,16 @@ $(genToParams        [t|Xivec4|])
 newtype Xuvec2 = Xuvec2 { unXuvec2 :: String }
 $(genKnownTypeSymbol [t|Xuvec2|] [e|"uvec2"|])
 $(genSocketed        [t|Xuvec2|] [e|unXuvec2|] [e|Xuvec2|])
-$(genNum             [t|Xuvec2|])
 $(genToParams        [t|Xuvec2|])
 
 newtype Xuvec3 = Xuvec3 { unXuvec3 :: String }
 $(genKnownTypeSymbol [t|Xuvec3|] [e|"uvec3"|])
 $(genSocketed        [t|Xuvec3|] [e|unXuvec3|] [e|Xuvec3|])
-$(genNum             [t|Xuvec3|])
 $(genToParams        [t|Xuvec3|])
 
 newtype Xuvec4 = Xuvec4 { unXuvec4 :: String }
 $(genKnownTypeSymbol [t|Xuvec4|] [e|"uvec4"|])
 $(genSocketed        [t|Xuvec4|] [e|unXuvec4|] [e|Xuvec4|])
-$(genNum             [t|Xuvec4|])
 $(genToParams        [t|Xuvec4|])
 
 

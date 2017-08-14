@@ -19,8 +19,14 @@ library
   exposed-modules:     Graphics.Gristle
                        Graphics.Gristle.Function
                        Graphics.Gristle.IxShader
-                       Graphics.Gristle.Parameters
+                       Graphics.Gristle.Ops.Mult
+                       Graphics.Gristle.Qualifiers
                        Graphics.Gristle.Socket
+                       Graphics.Gristle.Swizzle
+                       Graphics.Gristle.Types
+                       Graphics.Gristle.Function.ToParams
+                       Graphics.Gristle.Types.Xbool
+
   build-depends:       base >= 4.7 && < 5
                      , ghc-prim
                      , indexed

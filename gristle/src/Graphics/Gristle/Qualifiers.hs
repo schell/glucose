@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE AllowAmbiguousTypes   #-}
 {-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE FlexibleContexts      #-}
@@ -18,76 +19,191 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# OPTIONS_GHC -fno-warn-orphans            #-}
 {-# OPTIONS_GHC -fprint-explicit-kinds #-}
-module Graphics.Gristle.Qualifiers
-  ( module Graphics.Gristle.Qualifiers
-  , module G
-  ) where
+module Graphics.Gristle.Qualifiers where
 
 
 import           Data.Promotion.Prelude         hiding (Const)
 import           Data.Singletons.TypeLits
 import           Prelude                        hiding (Read, return, (>>),
-                                                 (>>=))
+                                                 (>>=), log)
 
 import           Graphics.Gristle.Function      
 import           Graphics.Gristle.IxShader      
-import           Graphics.Gristle.Qualifiers.TH as G
 import           Graphics.Gristle.Types         
 
---------------------------------------------------------------------------------
--- Read write stuff (for all types) 
---------------------------------------------------------------------------------
---  $(genReadWrite [t|Xbool|] )
---  $(genReadWrite [t|Xint|]  )
---  $(genReadWrite [t|Xuint|] )
---  $(genReadWrite [t|Xfloat|])
---  
---  $(genReadWrite [t|Xvec2|]) 
---  $(genReadWrite [t|Xvec3|])
---  $(genReadWrite [t|Xvec4|])
---  
---  $(genReadWrite [t|Xbvec2|])
---  $(genReadWrite [t|Xbvec3|])
---  $(genReadWrite [t|Xbvec4|])
---  
---  $(genReadWrite [t|Xivec2|])
---  $(genReadWrite [t|Xivec3|])
---  $(genReadWrite [t|Xivec4|])
---  
---  $(genReadWrite [t|Xuvec2|])
---  $(genReadWrite [t|Xuvec3|])
---  $(genReadWrite [t|Xuvec4|])
---  
---  $(genReadWrite [t|Xmat2|]  )
---  $(genReadWrite [t|Xmat2x3|])
---  $(genReadWrite [t|Xmat2x4|])
---  
---  $(genReadWrite [t|Xmat3|]  )
---  $(genReadWrite [t|Xmat3x2|])
---  $(genReadWrite [t|Xmat3x4|])
---  
---  $(genReadWrite [t|Xmat4|]  )
---  $(genReadWrite [t|Xmat4x2|])
---  $(genReadWrite [t|Xmat4x3|])
---
---
---instance ReadWrite t => ReadWrite (Uniform t n) where
---  mkReadable = unUniform
---  mkWriteable = error "Uniform not writeable"
---  -- this looks scary but because of WriteOnly this function cannot be called
---  -- by construction (for the same reason it can't really be defined)
---
---instance ReadWrite et => ReadWrite (In t n) where
---  mkReadable = unIn
---  mkWriteable = error "In not writeable" 
---  
---instance ReadWrite t => ReadWrite (Out t n) where
---  mkReadable = error "Out not readable"
---  mkWriteable = unOut
---
---instance ReadWrite t => ReadWrite (Const t) where
---  mkReadable = unConst 
---  mkWriteable = error "Const not writeable"
+newtype Uniform typ name = Uniform { unUniform :: typ }
+
+instance KnownTypeSymbol t => KnownTypeSymbol (Uniform t n) where
+  typeSymbolVal _ = typeSymbolVal $ Proxy @t
+
+instance Socketed t => Socketed (Uniform t n) where
+  unSocket = unSocket . unUniform
+  socket = Uniform . socket
+
+newtype In typ name = In { unIn :: typ }
+
+instance KnownTypeSymbol t => KnownTypeSymbol (In t n) where
+  typeSymbolVal _ = typeSymbolVal $ Proxy @t
+
+instance Socketed t => Socketed (In t n) where
+  unSocket = unSocket . unIn
+  socket = In . socket
+
+newtype Out typ name = Out { unOut :: typ }
+
+instance KnownTypeSymbol t => KnownTypeSymbol (Out t n) where
+  typeSymbolVal _ = typeSymbolVal $ Proxy @t
+
+instance Socketed t => Socketed (Out t n) where
+  unSocket = unSocket . unOut
+  socket = Out . socket
+
+newtype Const typ = Const { unConst :: typ }
+
+instance KnownTypeSymbol t => KnownTypeSymbol (Const t) where
+  typeSymbolVal _ = typeSymbolVal $ Proxy @t
+
+instance Socketed t => Socketed (Const t) where
+  unSocket = unSocket . unConst
+  socket = Const . socket
+
+-- Read and write rules
+type family ReadFrom a where
+  ReadFrom (Uniform t n) = t
+  ReadFrom (In t n)      = t
+  ReadFrom (Out t n)     = Error '(Out t n, "Cannot be read.")
+  ReadFrom (Const t)     = t
+  ReadFrom t             = t
+
+type family WriteTo a where
+  WriteTo (Uniform t n) = Error '(Uniform t n, "Cannot be written.")
+  WriteTo (In t n)      = Error '(In t n, "Cannot be written.")
+  WriteTo (Out t n)     = t
+  WriteTo (Const t)     = Error '(Const t, "Cannot be written.")
+  WriteTo t             = t
+
+class Cast a b where
+  cast :: a -> b
+
+instance (Socketed a, Socketed (ReadFrom a), b ~ ReadFrom a) => Cast a b where
+  cast = socket . unSocket
+
+type Readable a b = ( Socketed (ReadFrom a), Socketed a, Socketed b 
+                    , ReadFrom a ~ ReadFrom b
+                    )
+
+infixl 6 +
+(+) :: Readable a b => a -> b -> ReadFrom a
+(+) = callInfix "+"
+
+infixl 6 -
+(-) :: Readable a b => a -> b -> ReadFrom a
+(-) = callInfix "-"
+
+infixl 7 *
+(*) :: Readable a b => a -> b -> ReadFrom a
+(*) = callInfix "*"
+
+negate :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+negate a = socket $ concat ["(-", unSocket a, ")"]
+
+abs :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+abs = call "abs"
+
+signum :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+signum = call "sign"
+
+infixl 7 /
+(/) :: Readable a b => a -> b -> ReadFrom a
+(/) = callInfix "/"
+
+exp :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+exp  = call "exp"
+
+log :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+log  = call "log"
+
+sqrt :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+sqrt = call "sqrt"
+
+(**):: Readable a b => a -> b -> ReadFrom a
+(**) = call2 "pow"
+
+logBase :: Readable a b => a -> b -> ReadFrom a
+logBase a b = callInfix "/" (log b) (log a)
+
+sin :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+sin = call "sin"
+
+cos :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+cos = call "cos"
+
+tan :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+tan = call "tan"
+
+asin :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+asin = call "asin"
+
+acos :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+acos = call "acos"
+
+atan :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+atan = call "atan"
+
+sinh :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+sinh = call "sinh"
+
+cosh :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+cosh = call "cosh"
+
+tanh :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+tanh = call "tanh"
+
+asinh :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+asinh = call "asinh"
+
+acosh :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+acosh = call "acosh"
+
+atanh :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a
+atanh = call "atanh"
+
+infix 4 ==
+(==) :: Readable a b => a -> b -> Xbool
+(==) = callInfix "=="
+
+infix 4 /=
+(/=) :: Readable a b => a -> b -> Xbool
+(/=) = callInfix "!="
+
+infix 4 <
+(<)  :: Readable a b => a -> b -> Xbool
+(<) = callInfix "<"
+
+infix 4 <=
+(<=) :: Readable a b => a -> b -> Xbool
+(<=) = callInfix "<="
+
+infix 4 >
+(>)  :: Readable a b => a -> b -> Xbool
+(>) = callInfix ">"
+
+infix 4 >=
+(>=) :: Readable a b => a -> b -> Xbool
+(>=) = callInfix ">="
+
+max  :: Readable a b => a -> b -> ReadFrom a
+max = call2 "max"
+
+min  :: Readable a b => a -> b -> ReadFrom a
+min = call2 "min"
+
+normalize :: (Socketed a, Socketed (ReadFrom a)) => a -> ReadFrom a 
+normalize = call "normalize"
+
+dot :: Readable a b => a -> b -> Xfloat
+dot = call2 "dot"
+
 --------------------------------------------------------------------------------
 -- Program-level in/out bindings
 --------------------------------------------------------------------------------
@@ -135,8 +251,8 @@ instance HasContext 'WebGLContext where
 
 uniform_
   :: forall t name ts ctx. (KnownSymbol name, Socketed t, KnownTypeSymbol t)
-  => IxShader ctx ts (ts :++ '[Uniform t name]) t
-uniform_ = acc decls (Uniform @t @name) u
+  => IxShader ctx ts (ts :++ '[Uniform t name]) (Uniform t name)
+uniform_ = acc decls u u
   where
     u = socket $ symbolVal $ Proxy @name
     decls = unwords ["uniform", toDefinition u, ";"]
@@ -144,8 +260,8 @@ uniform_ = acc decls (Uniform @t @name) u
 in_
   :: forall t name ts ctx.
      (HasContext ctx, KnownSymbol name, Socketed t, KnownTypeSymbol t)
-  => IxShader ctx ts (ts :++ '[In t name]) t
-in_ = acc decls (In @t @name) i
+  => IxShader ctx ts (ts :++ '[In t name]) (In t name)
+in_ = acc decls i i
   where
     i   = socket $ symbolVal $ Proxy @name
     dec = case getCtx @ctx of
@@ -156,8 +272,8 @@ in_ = acc decls (In @t @name) i
 out_
   :: forall t name ts ctx.
      (HasContext ctx, KnownSymbol name, Socketed t, KnownTypeSymbol t)
-  => IxShader ctx ts (ts :++ '[Out t name]) t
-out_ = acc decls (Out @t @name) o
+  => IxShader ctx ts (ts :++ '[Out t name]) (Out t name)
+out_ = acc decls o o
   where
     o   = socket $ symbolVal $ Proxy @name
     dec = case getCtx @ctx of
@@ -167,8 +283,9 @@ out_ = acc decls (Out @t @name) o
 
 gl_Position
   :: forall ts ctx.
-  IxShader ctx ts (ts :++ '[Out Xvec4 "gl_Position"]) Xvec4
-gl_Position = acc [] (Out @Xvec4 @"gl_Position") $ Xvec4 "gl_Position"
+  IxShader ctx ts (ts :++ '[Out Xvec4 "gl_Position"]) (Out Xvec4 "gl_Position")
+gl_Position = acc [] o o 
+  where o = socket "gl_Position"
 
 type family GLFragName (a :: GLContext) where
   GLFragName 'OpenGLContext = "fragColor"
@@ -176,9 +293,9 @@ type family GLFragName (a :: GLContext) where
 
 gl_FragColor
   :: forall ctx ts. (HasContext ctx, KnownSymbol (GLFragName ctx))
-  => IxShader ctx ts (ts :++ '[Out Xvec4 (GLFragName ctx)]) Xvec4
-gl_FragColor = acc decls (Out @Xvec4 @(GLFragName ctx)) o
-  where o = Xvec4 $ symbolVal $ Proxy @(GLFragName ctx)
+  => IxShader ctx ts (ts :++ '[Out Xvec4 (GLFragName ctx)]) (Out Xvec4 (GLFragName ctx))
+gl_FragColor = acc decls o o
+  where o = socket $ symbolVal $ Proxy @(GLFragName ctx)
         decls = case getCtx @ctx of
           OpenGLContext -> unwords ["out", toDefinition o, ";"]
           _             -> []
