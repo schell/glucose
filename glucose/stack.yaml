@@ -38,10 +38,10 @@ resolver: lts-8.13
 packages:
 - .
 
-- location:
-    git: https://github.com/phadej/gl.git
-    commit: e7fd09f260ea5986bbd0addb9e41384ca79c004e
-  extra-dep: true
+# - location:
+#     git: https://github.com/phadej/gl.git
+#     commit: e7fd09f260ea5986bbd0addb9e41384ca79c004e
+#   extra-dep: true
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
