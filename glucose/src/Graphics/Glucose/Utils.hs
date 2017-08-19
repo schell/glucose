@@ -8,11 +8,11 @@ import           Control.Monad    (forM_)
 import           Graphics.Glucose
 
 compileShader
-  :: forall a. IsGLES a
+  :: forall m a. IsGLES m a
   => a
   -> GLEnum a
   -> String
-  -> (M a) (Either String (GLShader a))
+  -> m (Either String (GLShader a))
 compileShader gl shtype src = do
   let GLES{..} = gles gl
   s <- glCreateShader shtype
@@ -25,11 +25,11 @@ compileShader gl shtype src = do
       | otherwise -> return $ Right s
 
 compileProgram
-  :: forall a. IsGLES a
+  :: forall m a. IsGLES m a
   => a
   -> [(GLUint a, String)]
   -> [GLShader a]
-  -> (M a) (Either String (GLProgram a))
+  -> m (Either String (GLProgram a))
 compileProgram gl attribs shaders = do
   let GLES{..} = gles gl
   program <- glCreateProgram

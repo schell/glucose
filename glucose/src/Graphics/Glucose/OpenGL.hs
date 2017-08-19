@@ -357,20 +357,20 @@ opengl = OpenGL GLES {..}
     --  WebGLTexture || pname == GL.GL_TEXTURE_BINDING_CUBE_MAP
     --  sequence<GLboolean> (with 4 values) | pname == GL.GL_COLOR_WRITEMASK
     --  | otherwise = return GLESNone
-    --glGetProgramParameter program pname = liftIO $ allocaArray 1 $ \ptr -> do
-    --  GL.glGetProgramiv program pname ptr
-    --  [glint] <- peekArray 1 ptr
-    --  let intValues =
-    --          -- Returns a GLint indicating the number of attached shaders to a program.
-    --        [ GL.GL_ATTACHED_SHADERS
-    --          -- Returns a GLint indicating the number of active attribute variables to a program.
-    --        , GL.GL_ACTIVE_ATTRIBUTES
-    --          -- Returns a GLint indicating the number of active uniform variables to a program.
-    --        , GL.GL_ACTIVE_UNIFORMS
-    --        ]
-    --  return $ if pname `elem` intValues
-    --             then Right glint
-    --             else Left $ fromIntegral glint
+    glGetProgramParameter program pname = liftIO $ allocaArray 1 $ \ptr -> do
+      GL.glGetProgramiv program pname ptr
+      [glint] <- peekArray 1 ptr
+      let intValues =
+              -- Returns a GLint indicating the number of attached shaders to a program.
+            [ GL.GL_ATTACHED_SHADERS
+              -- Returns a GLint indicating the number of active attribute variables to a program.
+            , GL.GL_ACTIVE_ATTRIBUTES
+              -- Returns a GLint indicating the number of active uniform variables to a program.
+            , GL.GL_ACTIVE_UNIFORMS
+            ]
+      return $ if pname `elem` intValues
+                 then Right glint
+                 else Left $ fromIntegral glint
 
     glGetProgramInfoLog program = liftIO $
       withCString (replicate 1024 ' ') $ \ptr -> do
