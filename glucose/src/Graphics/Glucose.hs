@@ -12,7 +12,7 @@
 module Graphics.Glucose where
 
 import           Data.Bits            (Bits)
-import           Data.Vector.Storable (Storable (..), Vector)
+import           Data.Vector.Storable (Storable, Vector)
 import qualified Data.Vector.Storable as V
 import           Data.Word            (Word32)
 import           Linear               (M22, M33, M44, V2, V3, V4)
@@ -50,7 +50,7 @@ instance ToTypedVector Word where
   toTypedVector = UintVector . V.map fromIntegral
 
 data GLES
-  m
+  (m :: * -> *)
   program
   shader
   texture
@@ -658,15 +658,14 @@ data GLES
 
        }
 
-class ( Monad (M a)
+class ( Monad m
       , Eq (GLBoolean a)
       , Num (GLFloat a), Num (GLEnum a), Num (GLClampf a), Num (GLInt a)
       , Num (GLUint a) , Num (GLSizei a), Num (GLIntptr a)
       , Integral (GLEnum a)
       , Bits (GLEnum a), Show (GLEnum a)
       , Storable (GLFloat a), Storable (GLInt a), Storable (GLUint a)
-      ) => IsGLES a where
-  type M a :: * -> *
+      ) => IsGLES (m :: * -> *) a where
   type GLProgram a
   type GLShader a
   type GLTexture a
@@ -688,7 +687,7 @@ class ( Monad (M a)
   type GLExtension a
 
   gles :: a
-       -> GLES (M a)
+       -> GLES m
                (GLProgram a)
                (GLShader a)
                (GLTexture a)
