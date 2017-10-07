@@ -111,20 +111,20 @@ setupAttributes gl program = do
   return vao
 
 
-setupObjAttributes
-  :: forall a. (IsGLES a, MonadIO (M a))
-  => a
-  -> GLProgram a
-  -> WavefrontOBJ
-  -> (M a) (GLVertexArrayObject a)
-setupObjAttributes gl program obj = do
-  let GLES{..} = gles gl
-  vao <_ glCreateVertexArray
-  glBindVertexArray vao
-
-  posBuffer <- glCreateBuffer
-  glBindBuffer gl_ARRAY_BUFFER posBuffer
-  let geom :: Vector ()
+--setupObjAttributes
+--  :: forall a. (IsGLES a, MonadIO (M a))
+--  => a
+--  -> GLProgram a
+--  -> WavefrontOBJ
+--  -> (M a) (GLVertexArrayObject a)
+--setupObjAttributes gl program obj = do
+--  let GLES{..} = gles gl
+--  vao <_ glCreateVertexArray
+--  glBindVertexArray vao
+--
+--  posBuffer <- glCreateBuffer
+--  glBindBuffer gl_ARRAY_BUFFER posBuffer
+--  let geom :: Vector ()
 
 
 areQuit :: Event -> Bool
