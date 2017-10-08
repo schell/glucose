@@ -9,10 +9,10 @@ module Graphics.Glucose.Shared.Shaders
   , myfragment
   ) where
 
-import           Graphics.Gristle
+import           Graphics.IxShader
 
 myvertex
-  :: forall ctx. HasContext ctx
+  :: forall (ctx :: GLContext). HasContext ctx
   => IxShader ctx '[] '[ In      Xvec2 "position"
                        , In      Xvec4 "color"
                        , Uniform Xmat4 "projection"
@@ -33,7 +33,7 @@ myvertex = do
     glPos  .= proj .* modl .* (pos .: 0.0 .: 1.0)
 
 myfragment
-  :: forall (ctx :: GLContext). IsGLContext ctx 
+  :: forall (ctx :: GLContext). IsGLContext ctx
   => IxShader ctx '[] '[ In  Xvec4 "fcolor"
                        , Out Xvec4 (GLFragName ctx)
                        , Main

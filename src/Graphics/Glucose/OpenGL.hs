@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes   #-}
+{-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE DeriveAnyClass        #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -82,53 +83,29 @@ data PtrInfo len a = PtrInfo { ptrElementSize      :: Int
                              -- ^ The pointer itself.
                              }
 
-newtype OpenGL (m :: * -> *) =
-  OpenGL { unOpenGL :: GLES m                              -- m
-                            GL.GLuint                      -- program
-                            GL.GLuint                      -- shader
-                            GL.GLuint                      -- texture
-                            GL.GLint                       -- uniformlocation
-                            GL.GLfloat                     -- clampf
-                            GL.GLfloat                     -- float
-                            GL.GLenum                      -- enum
-                            GL.GLuint                      -- uint
-                            GL.GLint                       -- int
-                            GL.GLintptr                    -- intptr
-                            GL.GLboolean                   -- boolean
-                            GL.GLsizei                     -- sizei
-                            (Ptr ())                       -- ptr
-                            (PtrInfo (Int, Int) ())        -- imagedata
-                            GL.GLuint                      -- buffer
-                            GL.GLuint                      -- framebuffer
-                            GL.GLuint                      -- renderbuffer
-                            GL.GLuint                      -- vertexarrayobject
-                            ()                             -- extension
-         }
 
-instance MonadIO m => IsGLES m (OpenGL m) where
-  type GLProgram           (OpenGL m) = GL.GLuint
-  type GLShader            (OpenGL m) = GL.GLuint
-  type GLTexture           (OpenGL m) = GL.GLuint
-  type GLUniformlocation   (OpenGL m) = GL.GLint
-  type GLClampf            (OpenGL m) = GL.GLfloat
-  type GLFloat             (OpenGL m) = GL.GLfloat
-  type GLEnum              (OpenGL m) = GL.GLenum
-  type GLUint              (OpenGL m) = GL.GLuint
-  type GLInt               (OpenGL m) = GL.GLint
-  type GLIntptr            (OpenGL m) = GL.GLintptr
-  type GLBoolean           (OpenGL m) = GL.GLboolean
-  type GLSizei             (OpenGL m) = GL.GLsizei
-  type GLPtr               (OpenGL m) = Ptr ()
-  type GLImagedata         (OpenGL m) = PtrInfo (Int, Int) ()
-  type GLBuffer            (OpenGL m) = GL.GLuint
-  type GLFramebuffer       (OpenGL m) = GL.GLuint
-  type GLRenderbuffer      (OpenGL m) = GL.GLuint
-  type GLVertexArrayObject (OpenGL m) = GL.GLuint
-  type GLExtension         (OpenGL m) = ()
-  gles = unOpenGL
+type instance GLProgram           'GLBackendOpenGL = GL.GLuint
+type instance GLShader            'GLBackendOpenGL = GL.GLuint
+type instance GLTexture           'GLBackendOpenGL = GL.GLuint
+type instance GLUniformLocation   'GLBackendOpenGL = GL.GLint
+type instance GLClampf            'GLBackendOpenGL = GL.GLfloat
+type instance GLFloat             'GLBackendOpenGL = GL.GLfloat
+type instance GLEnum              'GLBackendOpenGL = GL.GLenum
+type instance GLUint              'GLBackendOpenGL = GL.GLuint
+type instance GLInt               'GLBackendOpenGL = GL.GLint
+type instance GLIntptr            'GLBackendOpenGL = GL.GLintptr
+type instance GLBoolean           'GLBackendOpenGL = GL.GLboolean
+type instance GLSizei             'GLBackendOpenGL = GL.GLsizei
+type instance GLPtr               'GLBackendOpenGL = Ptr ()
+type instance GLImageData         'GLBackendOpenGL = PtrInfo (Int, Int) ()
+type instance GLBuffer            'GLBackendOpenGL = GL.GLuint
+type instance GLFramebuffer       'GLBackendOpenGL = GL.GLuint
+type instance GLRenderbuffer      'GLBackendOpenGL = GL.GLuint
+type instance GLVertexArrayObject 'GLBackendOpenGL = GL.GLuint
+type instance GLExtension         'GLBackendOpenGL = ()
 
-opengl :: MonadIO m => OpenGL m
-opengl = OpenGL GLES {..}
+opengl :: MonadIO m => GLES m 'GLBackendOpenGL
+opengl = GLES {..}
   where
     true = GL.GL_TRUE
     false = GL.GL_FALSE
@@ -147,9 +124,9 @@ opengl = OpenGL GLES {..}
     --      sz   = sizeOf (undefined :: GL.GLuint)
     --  in liftIO $ V.unsafeWith veci $ f . PtrInfo sz (fromIntegral $ V.length veci)
 
-    --fromFloatArray (PtrInfo _ n ptr) = liftIO $ 
+    --fromFloatArray (PtrInfo _ n ptr) = liftIO $
     --  V.map realToFrac   <$> V.generateM (fromIntegral n) (peekElemOff ptr)
-    --fromIntArray   (PtrInfo _ n ptr) = liftIO $ 
+    --fromIntArray   (PtrInfo _ n ptr) = liftIO $
     --  V.map fromIntegral <$> V.generateM (fromIntegral n) (peekElemOff ptr)
     --fromUintArray  (PtrInfo _ n ptr) = liftIO $
     --  V.map fromIntegral <$> V.generateM (fromIntegral n) (peekElemOff ptr)
