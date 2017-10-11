@@ -40,20 +40,6 @@ type MyGLContext = 'OpenGLContext
 #endif
 
 
-type CommonGLConstraints a =
-  ( Num (GLUint a)
-
-  , Num (GLInt a)
-
-  , Num (GLSizei a)
-
-  , Num (GLIntptr a)
-
-  , Eq       (GLEnum a)
-  , Show     (GLEnum a)
-  , Integral (GLEnum a)
-  )
-
 positions :: Vector (V2 Float)
 positions =
   V.fromList [V2 (-50) (-50), V2 50 (-50), V2 50 50, V2 (-50) 50, V2 (-50) (-50)]
@@ -80,7 +66,7 @@ makeProgram
   :: forall m a. (MonadIO m, Eq (GLBoolean a), Num (GLUint a))
   => GLES m a
   -> m (Either String (GLProgram a))
-makeProgram gl@GLES{..} = do
+makeProgram gl@GLES{..} =
   --glEnable gl_DEPTH_TEST
   runEitherT $ do
     vSrc0 <- hoist $ return $ ixShaderSrc @MyGLContext myvertex

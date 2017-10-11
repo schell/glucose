@@ -51,7 +51,7 @@ run = do
                          }
   window <- createWindow "Glucose SDL2 Example" cfg
   void $ glCreateContext window -- from sdl2
-  let gl@(OpenGL GLES{..}) = opengl
+  let gl@GLES{..} = opengl
   makeProgram gl >>= \case
     Left err -> putStrLn err >> exitFailure
     Right program -> do

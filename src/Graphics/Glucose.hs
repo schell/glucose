@@ -22,6 +22,7 @@ import           Linear               (M22, M33, M44, V2, V3, V4)
 data GLBackend = GLBackendOpenGL
                | GLBackendWebGL
 
+
 data ShaderPrecisionFormat a = ShaderPrecisionFormat { spfRangeMin  :: a
                                                      , spfRangeMax  :: a
                                                      , spfPrecision :: a
@@ -83,6 +84,33 @@ type family GLFramebuffer (a :: GLBackend)
 type family GLRenderbuffer (a :: GLBackend)
 type family GLVertexArrayObject (a :: GLBackend)
 type family GLExtension (a :: GLBackend)
+
+type CommonGLConstraints a =
+  ( Num (GLClampf a)
+
+  , Num      (GLUint a)
+  , Enum     (GLUint a)
+  , Storable (GLUint a)
+
+  , Num (GLInt a)
+  , Storable (GLInt a)
+
+  , Num (GLSizei a)
+
+  , Num (GLIntptr a)
+
+  , Eq       (GLEnum a)
+  , Bits     (GLEnum a)
+  , Show     (GLEnum a)
+  , Integral (GLEnum a)
+  , Num      (GLEnum a)
+  , Show     (GLEnum a)
+
+  , Eq (GLBoolean a)
+
+  , Num      (GLFloat a)
+  , Storable (GLFloat a)
+  )
 
 data GLES (m :: * -> *) (a :: GLBackend) =
   GLES { glActiveTexture :: GLEnum a -> m ()

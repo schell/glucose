@@ -15,24 +15,24 @@
 {-# OPTIONS_GHC -fprint-explicit-kinds #-}
 module Shaders.Simple3d where
 
-import Graphics.Gristle
+import Graphics.IxShader
 
 type IxVert (ctx :: GLContext) (ts :: [*]) a = IsGLContext ctx => IxShader ctx '[] ts a
 type IxFrag ctx ts a = IxVert ctx ts a
 
 diffuseLightIntesity
   :: (Readable a b, Readable c d, ReadFrom a ~ ReadFrom c, ReadFrom a ~ Xvec3)
-  => a 
+  => a
   -- ^ The light source intensity
-  -> b 
+  -> b
   -- ^ The reflection coefficient
-  -> c 
+  -> c
   -- ^ The direction of the surface point to the light source
-  -> d 
+  -> d
   -- ^ The normal vector at the surface point
   -> Xvec3
 diffuseLightIntesity ld kd s n = ld * kd .* max (dot s n) 0.0
-   
+
 
 diffuseVertex
   :: IxVert ctx '[ In      Xvec3 "VertexPosition"
@@ -42,12 +42,12 @@ diffuseVertex
                  , Out     Xvec3 "LightIntensity"
                  , Uniform Xvec4 "LightPosition" -- position in eye coords
                  , Uniform Xvec3 "Kd"            -- diffuse reflectivity
-                 , Uniform Xvec3 "Ld"            -- light source intensity 
+                 , Uniform Xvec3 "Ld"            -- light source intensity
                  , Uniform Xmat4 "ModelViewMatrix"
                  , Uniform Xmat3 "NormalMatrix"
                  , Uniform Xmat4 "ProjectionMatrix"
                  , Main
-                 ] () 
+                 ] ()
 diffuseVertex = do
   vertexPosition <- in_
   vertexNormal   <- in_
@@ -69,9 +69,9 @@ diffuseVertex = do
     eyeCoords <- def "eyeCoords" $
       modelViewMatrix .* (vertexPosition .: 1.0)
     s <- def "s" $
-      normalize $ xyz $ lightPosition - eyeCoords 
+      normalize $ xyz $ lightPosition - eyeCoords
     -- The diffuse shading equation
-    lightIntensity .= diffuseLightIntesity ld kd s tnorm 
+    lightIntensity .= diffuseLightIntesity ld kd s tnorm
     -- Convert position to clip coordinates and pass along
     glPosition .= projectionMatrix .* modelViewMatrix .* (vertexPosition .: 1.0)
 
@@ -83,4 +83,4 @@ diffuseFragment
 diffuseFragment = do
   lightIntensity <- in_
   color <- gl_FragColor
-  main_ $ color .= lightIntensity .: 1.0 
+  main_ $ color .= lightIntensity .: 1.0

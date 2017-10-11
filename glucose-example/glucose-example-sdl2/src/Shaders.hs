@@ -15,7 +15,7 @@
 {-# OPTIONS_GHC -fprint-explicit-kinds #-}
 module Shaders where
 
-import           Graphics.Gristle
+import           Graphics.IxShader
 
 ------------------------------------------------------------------------------
 -- Stuff goes to mainline gristle
@@ -190,4 +190,3 @@ silexars1k = do
 
 
 printSilexars1k = putStrLn $ onlySrc $ silexars1k @'OpenGLContext
-
