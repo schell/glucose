@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes   #-}
 {-# LANGUAGE CPP                   #-}
 {-# LANGUAGE ConstraintKinds       #-}
+{-# LANGUAGE DataKinds             #-}
 {-# LANGUAGE DeriveAnyClass        #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -109,52 +110,28 @@ fromIntArray = liftIO . fromTypedArray @Integral lengthi32 fromIntegral indexi32
 fromUintArray :: MonadIO m => Uint32Array -> m (Vector Word32)
 fromUintArray = liftIO . fromTypedArray @Integral lengthu32 fromIntegral indexu32
 
-newtype WebGL = WebGL { unWebGL :: GLES JSM                          -- m
-                                        GL.WebGLProgram              -- program
-                                        GL.WebGLShader               -- shader
-                                        GL.WebGLTexture              -- texture
-                                        GL.WebGLUniformLocation      -- uniformlocation
-                                        GL.GLclampf                  -- clampf
-                                        GL.GLfloat                   -- float
-                                        GL.GLenum                    -- enum
-                                        GL.GLuint                    -- uint
-                                        GL.GLint                     -- int
-                                        GL.GLintptr                  -- intptr
-                                        GL.GLboolean                 -- boolean
-                                        GL.GLsizei                   -- sizei
-                                        GL.GLintptr                  -- ptr
-                                        GL.ImageData                 -- imagedata
-                                        GL.WebGLBuffer               -- buffer
-                                        GL.WebGLFramebuffer          -- framebuffer
-                                        GL.WebGLRenderbuffer         -- renderbuffer
-                                        GL.WebGLVertexArrayObjectOES -- vertexarrayobject
-                                        JSVal                        -- extension
-                      }
+--type M                   WebGL = JSM
+type instance GLProgram           GLBackendWebGL = GL.WebGLProgram
+type instance GLShader            GLBackendWebGL = GL.WebGLShader
+type instance GLTexture           GLBackendWebGL = GL.WebGLTexture
+type instance GLUniformLocation   GLBackendWebGL = GL.WebGLUniformLocation
+type instance GLClampf            GLBackendWebGL = GL.GLclampf
+type instance GLFloat             GLBackendWebGL = GL.GLfloat
+type instance GLEnum              GLBackendWebGL = GL.GLenum
+type instance GLUint              GLBackendWebGL = GL.GLuint
+type instance GLInt               GLBackendWebGL = GL.GLint
+type instance GLIntptr            GLBackendWebGL = GL.GLintptr
+type instance GLBoolean           GLBackendWebGL = GL.GLboolean
+type instance GLSizei             GLBackendWebGL = GL.GLsizei
+type instance GLPtr               GLBackendWebGL = GL.GLintptr
+type instance GLImageData         GLBackendWebGL = GL.ImageData
+type instance GLBuffer            GLBackendWebGL = GL.WebGLBuffer
+type instance GLFramebuffer       GLBackendWebGL = GL.WebGLFramebuffer
+type instance GLRenderbuffer      GLBackendWebGL = GL.WebGLRenderbuffer
+type instance GLVertexArrayObject GLBackendWebGL = GL.WebGLVertexArrayObjectOES
+type instance GLExtension         GLBackendWebGL = JSVal
 
-instance IsGLES WebGL where
-  type M                   WebGL = JSM
-  type GLProgram           WebGL = GL.WebGLProgram
-  type GLShader            WebGL = GL.WebGLShader
-  type GLTexture           WebGL = GL.WebGLTexture
-  type GLUniformlocation   WebGL = GL.WebGLUniformLocation
-  type GLClampf            WebGL = GL.GLclampf
-  type GLFloat             WebGL = GL.GLfloat
-  type GLEnum              WebGL = GL.GLenum
-  type GLUint              WebGL = GL.GLuint
-  type GLInt               WebGL = GL.GLint
-  type GLIntptr            WebGL = GL.GLintptr
-  type GLBoolean           WebGL = GL.GLboolean
-  type GLSizei             WebGL = GL.GLsizei
-  type GLPtr               WebGL = GL.GLintptr
-  type GLImagedata         WebGL = GL.ImageData
-  type GLBuffer            WebGL = GL.WebGLBuffer
-  type GLFramebuffer       WebGL = GL.WebGLFramebuffer
-  type GLRenderbuffer      WebGL = GL.WebGLRenderbuffer
-  type GLVertexArrayObject WebGL = GL.WebGLVertexArrayObjectOES
-  type GLExtension         WebGL = JSVal
-  gles = unWebGL
-
-initWebGL :: WebGLRenderingContextBase -> JSM (Either String WebGL)
+initWebGL :: WebGLRenderingContextBase -> JSM (Either String (GLES JSM 'GLBackendWebGL))
 initWebGL ctx = getExtension ctx "OES_vertex_array_object" >>= \case
   Nothing   -> fail "Could not get OES_vertex_array_object"
   Just gobj -> toJSVal gobj >>= fromJSVal >>= \case
@@ -166,8 +143,8 @@ webgl
   :: WebGLRenderingContextBase
   -> OESVertexArrayObject
   -> WebGLVertexArrayObjectOES
-  -> WebGL
-webgl ctx oesvao nullVAO = WebGL GLES{..}
+  -> GLES JSM 'GLBackendWebGL
+webgl ctx oesvao nullVAO = GLES{..}
   where
     true  = True
     false = False
