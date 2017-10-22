@@ -13,11 +13,10 @@ The second target will allow you to work with code bound for ghcjs while still
 using ghci based tools (intero, ghcid + cabal repl, etc).
 
 ## methodology
-`glucose` uses a mixture of the "[scrap your
+`glucose` uses the "[scrap your
 typeclasses](http://www.haskellforall.com/2012/05/scrap-your-type-classes.html)"
-record strategy along with (oddly enough) a typeclass to keep you from having
-to pass around an unruly record with 24 type variables. The record abstracts
-over the gl API while the typeclass abstracts over the record.
+record strategy along with open type families on an explicitly kinded type
+variable (`a :: GLBackend`) to abstract over the gl API.
 
 Most graphics code will look almost identical to its C counterpart (if you're
 used to looking at Haskell and C), given a few assumptions like using
@@ -26,13 +25,12 @@ used to looking at Haskell and C), given a few assumptions like using
 ## example code
 ```haskell
 compileShader
-  :: forall a. IsGLES a
-  => a
+  :: forall m (a :: GLBackend). (Monad m, Eq (GLBoolean a))
+  => GLES m a
   -> GLEnum a
   -> String
-  -> (M a) (Either String (GLShader a))
-compileShader gl shtype src = do
-  let GLES{..} = gles gl
+  -> m (Either String (GLShader a))
+compileShader GLES{..} shtype src = do
   s <- glCreateShader shtype
   glShaderSource s src
   glCompileShader s
@@ -42,6 +40,12 @@ compileShader gl shtype src = do
       | success == false -> Left <$> glGetShaderInfoLog s
       | otherwise -> return $ Right s
 ```
+
+It wraps both OpenGL (targeting 3.2+) and WebGL in a "least common denominator"
+fasion. Functions that exist in both APIs exist in glucose and functions from one
+API that can be written in terms of the other also exist, though they might
+exist in a slightly different form, either for simplicity or common sense's sake.
+
 ## building
 Building should be simple and depends on stack.
 
