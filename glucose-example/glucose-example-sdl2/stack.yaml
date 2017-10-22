@@ -37,16 +37,9 @@ resolver: lts-8.13
 # will not be run. This is useful for tweaking upstream packages.
 packages:
 - .
-- ../../gristle
 - ../glucose-example-shared
-- location:
-    git: https://github.com/schell/glucose.git
-    commit: f6d9c1978918ff04e7802401f580ae100659b098
-  extra-dep: true
-  subdirs:
-  - glucose
-#  - gristle
-# - glucose-example/glucose-example-shared
+- ../../../glucose
+- ../../../ixshader
 - location:
     git: https://github.com/lukexi/halive
     commit: a1ddda47b348c212ffbcb63881eb0fc2779cb828
@@ -54,6 +47,7 @@ packages:
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
+#- ixshader-0.0.1.0
 - ghcjs-dom-0.8.0.0
 - jsaddle-0.8.3.2
 - jsaddle-dom-0.8.0.0

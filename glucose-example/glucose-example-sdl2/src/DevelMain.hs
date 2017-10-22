@@ -38,9 +38,11 @@ import           Graphics.Glucose.OpenGL
 import           Graphics.Glucose.Shared
 import           Graphics.Glucose.Utils       (compileProgram, compileShader)
 
-import           Graphics.Gristle             (Binding (..), GLContext (..),
-                                               HasContext (..), IxShader,
-                                               getCtx, onlySrc)
+import           Graphics.IxShader            (Binding (..), GLContext (..),
+                                               HasContext (..),
+                                               HasShaderType (..), IxFragment,
+                                               IxShader, IxVertex,
+                                               ShaderType (..), getCtx, onlySrc)
 
 import           Shaders
 import           Shaders.Simple3d
@@ -49,36 +51,40 @@ import           Shaders.Simple3d
 -- IxShader helpers
 ------------------------------------------------------------------------------
 compileIxShader
-  :: forall (ctx :: GLContext) a j x. (HasContext ctx, MonadIO (M a), IsGLES a)
-  => a
-  -> IxShader ctx '[] j x
-  -> GLEnum a
-  -> (M a) (Either String (GLShader a))
-compileIxShader gl ixshader shadertype = runEitherT $ do
-  let GLES{..} = gles gl
-      src0 = onlySrc ixshader
-  let src1 = case getCtx @ctx of
+  :: forall (ctx :: GLContext) (shadertype :: ShaderType) m a j x.
+     ( HasContext ctx
+     , HasShaderType shadertype
+     , CommonGLConstraints a
+     , MonadIO m
+     )
+  => GLES m a
+  -> IxShader shadertype ctx '[] j x
+  -> m (Either String (GLShader a))
+compileIxShader gl@GLES{..} ixshader = runEitherT $ do
+  let src0 = onlySrc ixshader
+      src1 = case getCtx @ctx of
         OpenGLContext -> "#version 330 core\n" ++ src0
         WebGLContext  -> src0
+      shtyp = case getShaderType @shadertype of
+        VertexShader   -> gl_VERTEX_SHADER
+        FragmentShader -> gl_FRAGMENT_SHADER
   liftIO $ putStrLn $ "\n" ++ src1
-  EitherT $ compileShader gl shadertype src1
+  EitherT $ compileShader gl shtyp src1
 
 compileIxProgram
-  :: forall (ctx :: GLContext) a vs j x y.
-     ( IsGLES a
-     , Binding vs [Maybe String]
-     , Enum (GLUint a)
+  :: forall (ctx :: GLContext) m a vs j x y.
+     ( Binding vs [Maybe String]
+     , CommonGLConstraints a
      , HasContext ctx
-     , MonadIO (M a)
+     , MonadIO m
      )
-  => a
-  -> IxShader ctx '[] (vs :: [*]) x
-  -> IxShader ctx '[] j y
-  -> (M a) (Either String (GLProgram a))
-compileIxProgram gl ixvertex ixfragment = runEitherT $ do
-  let GLES{..} = gles gl
-  vshader <- EitherT $ compileIxShader gl ixvertex gl_VERTEX_SHADER
-  fshader <- EitherT $ compileIxShader gl ixfragment gl_FRAGMENT_SHADER
+  => GLES m a
+  -> IxVertex   ctx '[] (vs :: [*]) x
+  -> IxFragment ctx '[] j y
+  -> m (Either String (GLProgram a))
+compileIxProgram gl@GLES{..} ixvertex ixfragment = runEitherT $ do
+  vshader <- EitherT $ compileIxShader gl ixvertex
+  fshader <- EitherT $ compileIxShader gl ixfragment
   let attribNames = catMaybes $ getVertexBinding @vs
       attribLocs  = [0 ..]
       attribs     = zip attribLocs attribNames
@@ -89,12 +95,14 @@ compileIxProgram gl ixvertex ixfragment = runEitherT $ do
   return program
 
 setupAttributes
-  :: forall a. (IsGLES a, MonadIO (M a))
-  => a
+  :: forall m a.
+     ( MonadIO m
+     , CommonGLConstraints a
+     )
+  => GLES m a
   -> GLProgram a
-  -> (M a) (GLVertexArrayObject a)
-setupAttributes gl program = do
-  let GLES{..} = gles gl
+  -> m (GLVertexArrayObject a)
+setupAttributes gl@GLES{..} program = do
   -- Create a new VAO to hold our array settings
   vao <- glCreateVertexArray
   glBindVertexArray vao
@@ -150,7 +158,7 @@ main = do
     Left err  -> putStrLn err >> exitFailure
     Right obj -> return obj
 
-  let gl@(OpenGL GLES{..}) = opengl
+  let gl@GLES{..} = opengl
   compileIxProgram @'OpenGLContext gl diffuseVertex diffuseFragment >>= \case
     Left err -> fix $ \loop -> do
       putStrLn err
@@ -160,7 +168,7 @@ main = do
       glClearColor 0 0 0 1
       glEnable gl_DEPTH_TEST
       glDepthFunc gl_LESS
-      vao         <- setupObjAttributes gl program obj
+      vao         <- setupAttributes gl program --obj
       uTime       <- glGetUniformLocation program "u_time"
       uResolution <- glGetUniformLocation program "u_resolution"
       fix $ \loop -> do

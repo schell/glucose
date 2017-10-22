@@ -27,7 +27,7 @@ library
                      , halive
                      , glucose
                      , glucose-example-shared
-                     , gristle
+                     , ixshader
                      , linear
                      , mtl
                      , sdl2
@@ -55,7 +55,7 @@ executable hotload
                      , halive
                      , glucose
                      , glucose-example-shared
-                     , gristle
+                     , ixshader
                      , linear
                      , mtl
                      , sdl2

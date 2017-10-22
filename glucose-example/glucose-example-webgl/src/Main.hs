@@ -35,9 +35,13 @@ main = do
     Nothing   -> fail "Could not create rendering context."
     Just (RenderingContext val) ->
       initWebGL (WebGLRenderingContextBase val) >>= \case
-        Left err -> fail err
-        Right gl@(WebGL GLES{..}) -> makeProgram gl >>= \case
-          Left err -> fail err
+        Left err -> do
+          putStrLn err
+          fail ""
+        Right gl@GLES{..} -> makeProgram gl >>= \case
+          Left err -> do
+            putStrLn err
+            fail ""
           Right program -> do
             glClearColor 0 0 0 1
             (vao, projectionLoc, modelviewLoc) <- setup gl program

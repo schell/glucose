@@ -1,19 +1,21 @@
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE DataKinds        #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE RankNTypes       #-}
-{-# LANGUAGE RebindableSyntax #-}
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE NoImplicitPrelude   #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE RebindableSyntax    #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
 module Graphics.Glucose.Shared.Shaders
   ( myvertex
   , myfragment
   ) where
 
-import           Graphics.Gristle
+import           Graphics.IxShader
 
 myvertex
-  :: forall ctx. HasContext ctx
-  => IxShader ctx '[] '[ In      Xvec2 "position"
+  :: forall (ctx :: GLContext). HasContext ctx
+  => IxVertex ctx '[] '[ In      Xvec2 "position"
                        , In      Xvec4 "color"
                        , Uniform Xmat4 "projection"
                        , Uniform Xmat4 "modelview"
@@ -22,6 +24,9 @@ myvertex
                        , Main
                        ] ()
 myvertex = do
+  nxt_ $ case getCtx @ctx of
+    OpenGLContext -> "#version 330 core\n"
+    WebGLContext  -> "precision mediump float;"
   pos    <- in_
   color  <- in_
   proj   <- uniform_
@@ -33,12 +38,15 @@ myvertex = do
     glPos  .= proj .* modl .* (pos .: 0.0 .: 1.0)
 
 myfragment
-  :: forall (ctx :: GLContext). IsGLContext ctx 
-  => IxShader ctx '[] '[ In  Xvec4 "fcolor"
-                       , Out Xvec4 (GLFragName ctx)
-                       , Main
-                       ] ()
+  :: forall (ctx :: GLContext). IsGLContext ctx
+  => IxFragment ctx '[] '[ In  Xvec4 "fcolor"
+                         , Out Xvec4 (GLFragName ctx)
+                         , Main
+                         ] ()
 myfragment = do
+  nxt_ $ case getCtx @ctx of
+    OpenGLContext -> "#version 330 core\n"
+    WebGLContext  -> "precision mediump float;"
   fcolor <- in_
   glFrag <- gl_FragColor
   main_ $ glFrag .= fcolor

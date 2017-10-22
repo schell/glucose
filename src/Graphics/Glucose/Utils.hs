@@ -1,4 +1,6 @@
+{-# LANGUAGE DataKinds        #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE KindSignatures   #-}
 {-# LANGUAGE LambdaCase       #-}
 {-# LANGUAGE RankNTypes       #-}
 {-# LANGUAGE RecordWildCards  #-}
@@ -7,14 +9,14 @@ module Graphics.Glucose.Utils where
 import           Control.Monad    (forM_)
 import           Graphics.Glucose
 
+
 compileShader
-  :: forall m a. IsGLES m a
-  => a
+  :: forall m (a :: GLBackend). (Monad m, Eq (GLBoolean a))
+  => GLES m a
   -> GLEnum a
   -> String
   -> m (Either String (GLShader a))
-compileShader gl shtype src = do
-  let GLES{..} = gles gl
+compileShader GLES{..} shtype src = do
   s <- glCreateShader shtype
   glShaderSource s src
   glCompileShader s
@@ -24,14 +26,14 @@ compileShader gl shtype src = do
       | success == false -> Left <$> glGetShaderInfoLog s
       | otherwise -> return $ Right s
 
+
 compileProgram
-  :: forall m a. IsGLES m a
-  => a
+  :: forall m (a :: GLBackend). (Monad m, Eq (GLBoolean a))
+  => GLES m a
   -> [(GLUint a, String)]
   -> [GLShader a]
   -> m (Either String (GLProgram a))
-compileProgram gl attribs shaders = do
-  let GLES{..} = gles gl
+compileProgram GLES{..} attribs shaders = do
   program <- glCreateProgram
   forM_ shaders $ glAttachShader program
   forM_ attribs $ uncurry $ glBindAttribLocation program

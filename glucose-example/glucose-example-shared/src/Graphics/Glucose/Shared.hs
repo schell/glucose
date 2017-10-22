@@ -23,13 +23,13 @@ import           Data.Foldable                   (Foldable)
 import qualified Data.Foldable                   as F
 import           Data.Vector.Storable            (Storable, Vector)
 import qualified Data.Vector.Storable            as V
+import           Graphics.IxShader               (GLContext (..), getCtx,
+                                                  onlySrc)
+import           Linear
+
 import           Graphics.Glucose
 import           Graphics.Glucose.Shared.Shaders (myfragment, myvertex)
 import           Graphics.Glucose.Utils          (compileProgram, compileShader)
-import           Graphics.Gristle                (GLContext (..), getCtx,
-                                                  ixShaderSrc)
-import           Linear
-
 
 
 #ifdef WebGL
@@ -38,6 +38,7 @@ type MyGLContext = 'WebGLContext
 type MyGLContext = 'OpenGLContext
 #endif
 
+
 positions :: Vector (V2 Float)
 positions =
   V.fromList [V2 (-50) (-50), V2 50 (-50), V2 50 50, V2 (-50) 50, V2 (-50) (-50)]
@@ -45,9 +46,12 @@ positions =
 colors :: Vector (V4 Float)
 colors = V.fromList [V4 1 0 0 1, V4 0 1 0 1, V4 0 0 1 1, V4 1 1 1 1]
 
-clearError :: (MonadIO (M a), IsGLES a) => a -> String -> (M a) ()
-clearError gl msg = do
-  let GLES{..} = gles gl
+clearError
+  :: (MonadIO m, Eq (GLEnum a), Show (GLEnum a))
+  => GLES m a
+  -> String
+  -> m ()
+clearError GLES{..} msg = do
   err <- glGetError
   let msg2 = concat ["(", show err, ") at ", msg]
   maybe (return ()) (liftIO . putStrLn . unwords . (:[msg2])) $ case () of
@@ -57,26 +61,31 @@ clearError gl msg = do
        | err == gl_INVALID_OPERATION -> Just "INVALID_OPERATION"
        | otherwise                   -> Just $ show err
 
+numberLines :: String -> String
+numberLines = unlines . zipWith append [(0 :: Integer)..] . lines
+  where append n ln = unwords [show n, ln]
+
 makeProgram
-  :: forall a. (MonadIO (M a), IsGLES a)
-  => a
-  -> (M a) (Either String (GLProgram a))
-makeProgram gl = do
-  let GLES{..} = gles gl
+  :: forall m a. (MonadIO m, Eq (GLBoolean a), Num (GLUint a))
+  => GLES m a
+  -> m (Either String (GLProgram a))
+makeProgram gl@GLES{..} = do
   --glEnable gl_DEPTH_TEST
-  runEitherT $ do
-    vSrc0 <- hoist $ return $ ixShaderSrc @MyGLContext myvertex
-    fSrc0 <- hoist $ return $ ixShaderSrc @MyGLContext myfragment
-    let [vSrc1, fSrc1] = case getCtx @MyGLContext of
-          OpenGLContext -> map ("#version 330 core\n" ++) [vSrc0, fSrc0]
-          WebGLContext  -> [vSrc0, fSrc0]
-    vshader <- hoist $ compileShader gl gl_VERTEX_SHADER vSrc1
-    fshader <- hoist $ compileShader gl gl_FRAGMENT_SHADER fSrc1
+  let vSrc = onlySrc @MyGLContext myvertex
+      fSrc = onlySrc @MyGLContext myfragment
+  liftIO $ putStrLn vSrc
+  liftIO $ putStrLn fSrc
+  eStringProg <- runEitherT $ do
+    vshader <- hoist $ compileShader gl gl_VERTEX_SHADER vSrc
+    fshader <- hoist $ compileShader gl gl_FRAGMENT_SHADER fSrc
     program <- hoist $ compileProgram gl [(0, "position"), (1, "color")] [vshader, fshader]
     lift $ do
       glUseProgram program
       mapM_ glDeleteShader [vshader, fshader]
     return program
+  return $ case eStringProg of
+    Left err -> Left $ unlines $ ["error:", err, "", "vertex source:", numberLines vSrc, "", "fragment source:", numberLines fSrc, ""]
+    Right p  -> Right p
 
 flatten :: (Foldable f, Storable (f a), Storable a) => Vector (f a) -> Vector a
 flatten = V.concatMap (V.fromList . F.toList)
@@ -85,12 +94,11 @@ hoist :: Monad m => m (Either e a) -> EitherT e m a
 hoist = EitherT
 
 setup
-  :: forall a. (IsGLES a, MonadIO (M a))
-  => a
+  :: forall m a. (MonadIO m, CommonGLConstraints a)
+  => GLES m a
   -> GLProgram a
-  -> (M a) (GLVertexArrayObject a, GLUniformlocation a, GLUniformlocation a)
-setup gl program = do
-  let GLES{..} = gles gl
+  -> m (GLVertexArrayObject a, GLUniformLocation a, GLUniformLocation a)
+setup gl@GLES{..} program = do
   -- Create a new VAO to hold our array settings
   vao <- glCreateVertexArray
   glBindVertexArray vao
@@ -118,17 +126,16 @@ setup gl program = do
           <*> glGetUniformLocation program "modelview"
 
 drawScene
-  :: (MonadIO (M a), IsGLES a)
-  => a
+  :: (MonadIO m, CommonGLConstraints a)
+  => GLES m a
   -> GLVertexArrayObject a
-  -> GLUniformlocation a
-  -> GLUniformlocation a
+  -> GLUniformLocation a
+  -> GLUniformLocation a
   -> Float
   -> Float
   -> Double
-  -> (M a) ()
-drawScene gl vao projectionLoc modelviewLoc w h t = do
-  let GLES{..} = gles gl
+  -> m ()
+drawScene gl@GLES{..} vao projectionLoc modelviewLoc w h t = do
   glClear $ fromIntegral gl_COLOR_BUFFER_BIT
   glViewport 0 0 (fromIntegral $ floor w) (fromIntegral $ floor h)
   clearError gl "drawScene.clear and viewport"
