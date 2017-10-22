@@ -38,9 +38,11 @@ import           Graphics.Glucose.OpenGL
 import           Graphics.Glucose.Shared
 import           Graphics.Glucose.Utils       (compileProgram, compileShader)
 
-import           Graphics.IxShader             (Binding (..), GLContext (..),
-                                               HasContext (..), IxShader,
-                                               getCtx, onlySrc)
+import           Graphics.IxShader            (Binding (..), GLContext (..),
+                                               HasContext (..),
+                                               HasShaderType (..), IxFragment,
+                                               IxShader, IxVertex,
+                                               ShaderType (..), getCtx, onlySrc)
 
 import           Shaders
 import           Shaders.Simple3d
@@ -49,22 +51,25 @@ import           Shaders.Simple3d
 -- IxShader helpers
 ------------------------------------------------------------------------------
 compileIxShader
-  :: forall (ctx :: GLContext) m a j x.
+  :: forall (ctx :: GLContext) (shadertype :: ShaderType) m a j x.
      ( HasContext ctx
+     , HasShaderType shadertype
      , CommonGLConstraints a
      , MonadIO m
      )
   => GLES m a
-  -> IxShader ctx '[] j x
-  -> GLEnum a
+  -> IxShader shadertype ctx '[] j x
   -> m (Either String (GLShader a))
-compileIxShader gl@GLES{..} ixshader shadertype = runEitherT $ do
+compileIxShader gl@GLES{..} ixshader = runEitherT $ do
   let src0 = onlySrc ixshader
       src1 = case getCtx @ctx of
         OpenGLContext -> "#version 330 core\n" ++ src0
         WebGLContext  -> src0
+      shtyp = case getShaderType @shadertype of
+        VertexShader   -> gl_VERTEX_SHADER
+        FragmentShader -> gl_FRAGMENT_SHADER
   liftIO $ putStrLn $ "\n" ++ src1
-  EitherT $ compileShader gl shadertype src1
+  EitherT $ compileShader gl shtyp src1
 
 compileIxProgram
   :: forall (ctx :: GLContext) m a vs j x y.
@@ -74,12 +79,12 @@ compileIxProgram
      , MonadIO m
      )
   => GLES m a
-  -> IxShader ctx '[] (vs :: [*]) x
-  -> IxShader ctx '[] j y
+  -> IxVertex   ctx '[] (vs :: [*]) x
+  -> IxFragment ctx '[] j y
   -> m (Either String (GLProgram a))
 compileIxProgram gl@GLES{..} ixvertex ixfragment = runEitherT $ do
-  vshader <- EitherT $ compileIxShader gl ixvertex gl_VERTEX_SHADER
-  fshader <- EitherT $ compileIxShader gl ixfragment gl_FRAGMENT_SHADER
+  vshader <- EitherT $ compileIxShader gl ixvertex
+  fshader <- EitherT $ compileIxShader gl ixfragment
   let attribNames = catMaybes $ getVertexBinding @vs
       attribLocs  = [0 ..]
       attribs     = zip attribLocs attribNames

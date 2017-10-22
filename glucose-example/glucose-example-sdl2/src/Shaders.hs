@@ -25,7 +25,7 @@ import           Graphics.IxShader
 ------------------------------------------------------------------------------
 passthruVertex
   :: forall (ctx :: GLContext). IsGLContext ctx
-  => IxShader ctx '[] '[ In Xvec2 "position"
+  => IxVertex ctx '[] '[ In Xvec2 "position"
                        , Out Xvec4 "gl_Position"
                        , Main
                        ] ()
@@ -36,9 +36,9 @@ passthruVertex = do
 
 helloFrag
   :: forall (ctx :: GLContext). IsGLContext ctx
-  => IxShader ctx '[] '[ Out Xvec4 (GLFragName ctx)
-                       , Main
-                       ] ()
+  => IxFragment ctx '[] '[ Out Xvec4 (GLFragName ctx)
+                         , Main
+                         ] ()
 helloFrag = do
   frag <- gl_FragColor
   main_ $ frag .= mkvec4 1.0 0.0 1.0 1.0
@@ -47,10 +47,10 @@ helloFrag = do
 --------------------------------------------------------------------------------
 frag030
   :: IsGLContext ctx
-  => IxShader ctx '[] '[ Uniform Xfloat "u_time"
-                       , Out Xvec4 (GLFragName ctx)
-                       , Main
-                       ] ()
+  => IxFragment ctx '[] '[ Uniform Xfloat "u_time"
+                         , Out Xvec4 (GLFragName ctx)
+                         , Main
+                         ] ()
 frag030 = do
   uTime <- uniform_
   frag <- gl_FragColor
@@ -61,7 +61,7 @@ type RMT = '[ Uniform Xvec2 "u_resolution"
             , Uniform Xfloat "u_time"
             ]
 type RMTFrag ctx =
-  IxShader ctx '[] (RMT :++ '[Out Xvec4 (GLFragName ctx), Main])
+  IxFragment ctx '[] (RMT :++ '[Out Xvec4 (GLFragName ctx), Main])
 
 
 frag031
@@ -80,7 +80,7 @@ frag031 = do
 --------------------------------------------------------------------------------
 getUniformsAndFrag
   :: forall (ctx :: GLContext). IsGLContext ctx
-  => IxShader ctx '[] (RMT :++ '[Out Xvec4 (GLFragName ctx)])
+  => IxFragment ctx '[] (RMT :++ '[Out Xvec4 (GLFragName ctx)])
        (Uniform Xvec2 "u_resolution", Out Xvec4 (GLFragName ctx))
 getUniformsAndFrag = do
   uResolution <- uniform_
@@ -91,7 +91,7 @@ getUniformsAndFrag = do
 
 plotFunc
   :: forall (ctx :: GLContext) i. IsGLContext ctx
-  => IxShader ctx i (i :++ '[Function Xfloat "plot" (Xvec2, Xfloat)]) ((Xvec2, Xfloat) -> Xfloat)
+  => IxFragment ctx i (i :++ '[Function Xfloat "plot" (Xvec2, Xfloat)]) ((Xvec2, Xfloat) -> Xfloat)
 plotFunc = func @"plot" (Xvec2 "st", Xfloat "pct") $ \(st, pct) -> do
   t <- def "thickness" 0.02
   let a = smoothstep (pct - t) pct       $ y st
@@ -103,7 +103,7 @@ getColor
      Xvec2
   -> ((Xvec2, Xfloat) -> Xfloat)
   -> (Xfloat -> Xfloat)
-  -> IxShader ctx i i Xvec4
+  -> IxFragment ctx i i Xvec4
 getColor uResolution plot g = do
   st    <- def "st" $ xy gl_FragCoord / uResolution
   py    <- def "py" $ g $ x st
@@ -118,9 +118,9 @@ getColor uResolution plot g = do
   return $ fg + bg
 
 type RMTPlotFrag ctx =
-  IxShader ctx '[] (RMT :++ '[ Out Xvec4 (GLFragName ctx)
-                             , Function Xfloat "plot" (Xvec2, Xfloat)
-                             , Main])
+  IxFragment ctx '[] (RMT :++ '[ Out Xvec4 (GLFragName ctx)
+                               , Function Xfloat "plot" (Xvec2, Xfloat)
+                               , Main])
 
 frag050 :: forall (ctx :: GLContext). IsGLContext ctx => RMTPlotFrag ctx ()
 frag050 = do
@@ -161,12 +161,12 @@ frag053 = do
 
 silexars1k
   :: forall (ctx :: GLContext). IsGLContext ctx
-  => IxShader ctx '[] '[ Out Xvec4 (GLFragName ctx)
-                       , Uniform Xvec2 "u_resolution"
-                       , Uniform Xfloat "u_time"
-                       --, Function Xvoid "mainImage" (In Xvec4 "fragColor", In Xvec4 "fragCoord")
-                       , Main
-                       ] ()
+  => IxFragment ctx '[] '[ Out Xvec4 (GLFragName ctx)
+                         , Uniform Xvec2 "u_resolution"
+                         , Uniform Xfloat "u_time"
+                         --, Function Xvoid "mainImage" (In Xvec4 "fragColor", In Xvec4 "fragCoord")
+                         , Main
+                         ] ()
 silexars1k = do
   fragColor   <- gl_FragColor
   r           <- uniform_

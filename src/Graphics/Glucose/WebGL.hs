@@ -110,7 +110,6 @@ fromIntArray = liftIO . fromTypedArray @Integral lengthi32 fromIntegral indexi32
 fromUintArray :: MonadIO m => Uint32Array -> m (Vector Word32)
 fromUintArray = liftIO . fromTypedArray @Integral lengthu32 fromIntegral indexu32
 
---type M                   WebGL = JSM
 type instance GLProgram           GLBackendWebGL = GL.WebGLProgram
 type instance GLShader            GLBackendWebGL = GL.WebGLShader
 type instance GLTexture           GLBackendWebGL = GL.WebGLTexture
@@ -163,10 +162,6 @@ webgl ctx oesvao nullVAO = GLES{..}
                    => Vector a -> (Uint32Array -> m b) -> m b
     withUintArray vec f = let vec' = V.map fromIntegral vec in
       liftIO (V.unsafeWith vec' $ \ptr -> toUintArrayJS ptr (V.length vec')) >>= f
-
-    --fromFloatArray = fromFloatArray'
-    --fromIntArray   = fromIntArray'
-    --fromUintArray  = fromUintArray'
 
     glCreateVertexArray = GL.createVertexArrayOES oesvao
     glBindVertexArray   = GL.bindVertexArrayOES   oesvao . Just

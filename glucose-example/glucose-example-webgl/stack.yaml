@@ -46,11 +46,12 @@ packages:
 - .
 - ../..
 - ../glucose-example-shared
+- ../../../ixshader
 
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
-- ixshader-0.0.1.0
+#- ixshader-0.0.1.0
 - indexed-0.1.3
 - ghcjs-dom-0.8.0.0
 - ghcjs-dom-jsffi-0.8.0.0

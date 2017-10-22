@@ -39,6 +39,7 @@ packages:
 - .
 - ../glucose-example-shared
 - ../../../glucose
+- ../../../ixshader
 - location:
     git: https://github.com/lukexi/halive
     commit: a1ddda47b348c212ffbcb63881eb0fc2779cb828
@@ -46,7 +47,7 @@ packages:
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:
-- ixshader-0.0.1.0
+#- ixshader-0.0.1.0
 - ghcjs-dom-0.8.0.0
 - jsaddle-0.8.3.2
 - jsaddle-dom-0.8.0.0

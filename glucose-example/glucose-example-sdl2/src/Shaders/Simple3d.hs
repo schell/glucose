@@ -17,9 +17,6 @@ module Shaders.Simple3d where
 
 import Graphics.IxShader
 
-type IxVert (ctx :: GLContext) (ts :: [*]) a = IsGLContext ctx => IxShader ctx '[] ts a
-type IxFrag ctx ts a = IxVert ctx ts a
-
 diffuseLightIntesity
   :: (Readable a b, Readable c d, ReadFrom a ~ ReadFrom c, ReadFrom a ~ Xvec3)
   => a
@@ -35,19 +32,20 @@ diffuseLightIntesity ld kd s n = ld * kd .* max (dot s n) 0.0
 
 
 diffuseVertex
-  :: IxVert ctx '[ In      Xvec3 "VertexPosition"
-                 , In      Xvec3 "VertexNormal"
-                 --, In Xvec4 "color"
-                 , Out     Xvec4 "gl_Position"
-                 , Out     Xvec3 "LightIntensity"
-                 , Uniform Xvec4 "LightPosition" -- position in eye coords
-                 , Uniform Xvec3 "Kd"            -- diffuse reflectivity
-                 , Uniform Xvec3 "Ld"            -- light source intensity
-                 , Uniform Xmat4 "ModelViewMatrix"
-                 , Uniform Xmat3 "NormalMatrix"
-                 , Uniform Xmat4 "ProjectionMatrix"
-                 , Main
-                 ] ()
+  :: HasContext ctx
+  => IxVertex ctx '[] '[ In      Xvec3 "VertexPosition"
+                       , In      Xvec3 "VertexNormal"
+                       --, In Xvec4 "color"
+                       , Out     Xvec4 "gl_Position"
+                       , Out     Xvec3 "LightIntensity"
+                       , Uniform Xvec4 "LightPosition" -- position in eye coords
+                       , Uniform Xvec3 "Kd"            -- diffuse reflectivity
+                       , Uniform Xvec3 "Ld"            -- light source intensity
+                       , Uniform Xmat4 "ModelViewMatrix"
+                       , Uniform Xmat3 "NormalMatrix"
+                       , Uniform Xmat4 "ProjectionMatrix"
+                       , Main
+                       ] ()
 diffuseVertex = do
   vertexPosition <- in_
   vertexNormal   <- in_
@@ -76,10 +74,11 @@ diffuseVertex = do
     glPosition .= projectionMatrix .* modelViewMatrix .* (vertexPosition .: 1.0)
 
 diffuseFragment
-  :: IxFrag ctx '[ In Xvec3 "LightIntensity"
-                 , Out Xvec4 (GLFragName ctx)
-                 , Main
-                 ] ()
+  :: (HasContext ctx, KnownSymbol (GLFragName ctx))
+  => IxFragment ctx '[] '[ In Xvec3 "LightIntensity"
+                         , Out Xvec4 (GLFragName ctx)
+                         , Main
+                         ] ()
 diffuseFragment = do
   lightIntensity <- in_
   color <- gl_FragColor

@@ -24,13 +24,12 @@ import qualified Data.Foldable                   as F
 import           Data.Vector.Storable            (Storable, Vector)
 import qualified Data.Vector.Storable            as V
 import           Graphics.IxShader               (GLContext (..), getCtx,
-                                                  ixShaderSrc)
+                                                  onlySrc)
 import           Linear
 
 import           Graphics.Glucose
 import           Graphics.Glucose.Shared.Shaders (myfragment, myvertex)
 import           Graphics.Glucose.Utils          (compileProgram, compileShader)
-
 
 
 #ifdef WebGL
@@ -62,25 +61,31 @@ clearError GLES{..} msg = do
        | err == gl_INVALID_OPERATION -> Just "INVALID_OPERATION"
        | otherwise                   -> Just $ show err
 
+numberLines :: String -> String
+numberLines = unlines . zipWith append [(0 :: Integer)..] . lines
+  where append n ln = unwords [show n, ln]
+
 makeProgram
   :: forall m a. (MonadIO m, Eq (GLBoolean a), Num (GLUint a))
   => GLES m a
   -> m (Either String (GLProgram a))
-makeProgram gl@GLES{..} =
+makeProgram gl@GLES{..} = do
   --glEnable gl_DEPTH_TEST
-  runEitherT $ do
-    vSrc0 <- hoist $ return $ ixShaderSrc @MyGLContext myvertex
-    fSrc0 <- hoist $ return $ ixShaderSrc @MyGLContext myfragment
-    let [vSrc1, fSrc1] = case getCtx @MyGLContext of
-          OpenGLContext -> map ("#version 330 core\n" ++) [vSrc0, fSrc0]
-          WebGLContext  -> [vSrc0, fSrc0]
-    vshader <- hoist $ compileShader gl gl_VERTEX_SHADER vSrc1
-    fshader <- hoist $ compileShader gl gl_FRAGMENT_SHADER fSrc1
+  let vSrc = onlySrc @MyGLContext myvertex
+      fSrc = onlySrc @MyGLContext myfragment
+  liftIO $ putStrLn vSrc
+  liftIO $ putStrLn fSrc
+  eStringProg <- runEitherT $ do
+    vshader <- hoist $ compileShader gl gl_VERTEX_SHADER vSrc
+    fshader <- hoist $ compileShader gl gl_FRAGMENT_SHADER fSrc
     program <- hoist $ compileProgram gl [(0, "position"), (1, "color")] [vshader, fshader]
     lift $ do
       glUseProgram program
       mapM_ glDeleteShader [vshader, fshader]
     return program
+  return $ case eStringProg of
+    Left err -> Left $ unlines $ ["error:", err, "", "vertex source:", numberLines vSrc, "", "fragment source:", numberLines fSrc, ""]
+    Right p  -> Right p
 
 flatten :: (Foldable f, Storable (f a), Storable a) => Vector (f a) -> Vector a
 flatten = V.concatMap (V.fromList . F.toList)
